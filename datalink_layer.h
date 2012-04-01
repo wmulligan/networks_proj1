@@ -1,0 +1,1 @@
+void * DataLinkLayer( void * longPointer );

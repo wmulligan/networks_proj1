@@ -1,0 +1,1 @@
+void * ApplicationLayer( void * longPointer );
