@@ -19,16 +19,16 @@ physical_layer.o: physical_layer.cpp physical_layer.h
 	g++ -fpermissive -c physical_layer.cpp
 
 datalink_layer.o: datalink_layer.cpp datalink_layer.h
-	g++ -c datalink_layer.cpp
+	g++ -fpermissive -c datalink_layer.cpp
 
 network_layer.o: network_layer.cpp network_layer.h
-	g++ -c network_layer.cpp
+	g++ -fpermissive -c network_layer.cpp
 
 server_app_layer.o: server_app_layer.cpp server_app_layer.h
-	g++ -c server_app_layer.cpp
+	g++ -fpermissive -c server_app_layer.cpp
 
 client_app_layer.o: client_app_layer.cpp client_app_layer.h
-	g++ -c client_app_layer.cpp
+	g++ -fpermissive -c client_app_layer.cpp
 
 clean:
 	rm *.o server
