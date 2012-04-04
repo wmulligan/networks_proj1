@@ -16,7 +16,7 @@ queue.o: queue.cpp queue.h
 	g++ -c queue.cpp
 
 physical_layer.o: physical_layer.cpp physical_layer.h
-	g++ -c physical_layer.cpp
+	g++ -fpermissive -c physical_layer.cpp
 
 datalink_layer.o: datalink_layer.cpp datalink_layer.h
 	g++ -c datalink_layer.cpp
