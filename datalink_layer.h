@@ -29,7 +29,7 @@ struct frameInfo {
   uint16_t seqNumber;
   uint8_t endOfPacket;
   uint8_t payloadLength;
-  uint8_t[MAX_PAYLOAD_SIZE] payload;
+  uint8_t payload[MAX_PAYLOAD_SIZE];
   uint16_t frameCheckSequence;
 };
   

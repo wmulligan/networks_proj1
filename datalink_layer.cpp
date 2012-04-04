@@ -178,7 +178,7 @@ void * PhToNwHandler( void * longPointer )
       // OK sequence number makes sense, adjust sliding window
       // Critical Section
       pthread_spin_lock(&(syncInfo->lock));
-      if(syncInfo->windowSize < MAX_WINDOW_SIZE)
+      if(syncInfo->windowSize < WINDOW_SIZE)
 	syncInfo->windowSize++; // Increment available window slots
       syncInfo->ackSequence++; // Increment next expected sequence number
       pthread_spin_unlock(&(syncInfo->lock));
@@ -248,7 +248,7 @@ void * PhToNwHandler( void * longPointer )
 uint16_t generateFCS(struct frameInfo *frame)
 {
   uint16_t checksum = 0x0000;
-  uint8_t payloadLength = frame->length;
+  uint8_t payloadLength = frame->payloadLength;
   uint8_t pos = 3;
 
   // Null check
@@ -257,27 +257,27 @@ uint16_t generateFCS(struct frameInfo *frame)
   }
 
   // Add starting values
-  checksum += (uint16_t *)frame[0];
+  checksum += ((uint16_t *)frame)[0];
 
   // Fold on static fields
-  checksum ^= (uint16_t *)frame[1];
+  checksum ^= ((uint16_t *)frame)[1];
   if(payloadLength > 0) {
-    checksum ^= (uint16_t *)frame[2];
+    checksum ^= ((uint16_t *)frame)[2];
     payloadLength--;
   } else {
-    checksum ^= (uint16_t *)frame[2] & 0xFF00;
+    checksum ^= ((uint16_t *)frame)[2] & 0xFF00;
   }
 
   // While we have over 2 bytes of payload left to fold in, fold in 16 bit quantities
   while(payloadLength > 2) {
-    checksum ^= (uint16_t *)frame[pos];
+    checksum ^= ((uint16_t *)frame)[pos];
     pos++;
     payloadLength -= 2;
   }
 
   // If we have a byte left over, fold it in.
   if(payloadLength == 1) {
-    checksum ^= (uint16_t)frame[pos] & 0xFF00; 
+    checksum ^= ((uint16_t *)frame)[pos] & 0xFF00; 
   }
 
   return checksum;
