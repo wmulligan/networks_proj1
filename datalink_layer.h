@@ -15,14 +15,6 @@ void * DataLinkLayer( void * longPointer );
 // Size of an ACK frame, in bytes
 #define ACK_SIZE 7
 
-// Structure of an ACK frame
-struct ackFrameInfo {
-  uint8_t frameType;
-  uint16_t seqNumber;
-  uint16_t ignored; // Represents end of packet and length fields, ignored in an ACK
-  uint16_t seqNumberRepeat;
-};
-
 // Frame info structure: Contains all fields in a completed frame, in order.
 struct frameInfo {
   uint8_t frameType;
@@ -30,7 +22,6 @@ struct frameInfo {
   uint8_t endOfPacket;
   uint8_t payloadLength;
   uint8_t payload[MAX_PAYLOAD_SIZE];
-  uint16_t frameCheckSequence;
 };
   
 // Syncs the send and receive threads for a single physical layer socket
