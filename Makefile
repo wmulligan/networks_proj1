@@ -31,4 +31,4 @@ client_app_layer.o: client_app_layer.cpp client_app_layer.h
 	g++ -fpermissive -c client_app_layer.cpp
 
 clean:
-	rm *.o server
+	rm *.o server client
