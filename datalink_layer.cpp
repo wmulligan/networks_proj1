@@ -12,6 +12,7 @@
 #include <sys/socket.h>
 #include <arpa/inet.h>
 #include <signal.h>
+#include <time.h>
 
 #include "datalink_layer.h"
 #include "queue.h"
@@ -63,10 +64,18 @@ void * NwToPhHandler( void * longPointer )
   int iSocket; // client socket handle
   int iSendLength; // Length of send data
   int iRecvLength; // length of recieved data
+  timer_t timerId;
+  struct sigevent timerEvent;
+  struct sigaction timerAction;
   struct frameInfo *frameToSend;
   struct linkLayerSync *syncInfo = (struct linkLayerSync *)longPointer;
 
   iSocket = syncInfo->socket;
+
+  // Set up our sigevent struct (used for realtime timer for go-back-n).
+  timerEvent.sigev_notify = SIGEV_SIGNAL;
+  timerEvent.sigev_signo = SIGUSR1;
+  timerEvent.sigev_value.sival_ptr = &timerId;
 
   while ( true )
   {
@@ -159,7 +168,7 @@ void * PhToNwHandler( void * longPointer )
     cout << "[DataLink] Received " << iRecvLength << " byte frame from physical." << endl;
 
 #ifdef VERBOSE_RECEIVE_DEBUG
-    printf("Received message. Contents: ");
+    printf("[DataLink] Received message. Contents: ");
     for(int j = 0; j < iRecvLength; j++) {
       printf("%02X ", pFrame[j]);
     }
@@ -213,7 +222,7 @@ void * PhToNwHandler( void * longPointer )
     }
 
     // Block until ack is sent to physical
-    if(sendAck(receivedFrame->seqNumber, syncInfo) != 7) {
+    if(sendAck(receivedFrame->seqNumber, syncInfo) != ACK_SIZE) {
       cout << "[DataLink] Sending ack for sequence number " << receivedFrame->seqNumber << " failed!" << endl;
       free(receivedFrame);
       continue;
@@ -303,7 +312,7 @@ uint8_t transmitFrame(struct frameInfo *frame, struct linkLayerSync *syncInfo)
   // End Critical Section
 
   // Allocate a buffer to construct the frame in
-  buffer = (uint8_t *)malloc(7 + frame->payloadLength);
+  buffer = (uint8_t *)malloc(FRAMING_SIZE + frame->payloadLength);
 
   // We can copy in the first 5 bytes of the frameInfo struct, as they are static fields
   for(i = 0; i < 5; i++) {
@@ -314,7 +323,6 @@ uint8_t transmitFrame(struct frameInfo *frame, struct linkLayerSync *syncInfo)
   buffer[1] = (uint8_t)(frame->seqNumber >> 8);
   buffer[2] = (uint8_t)(frame->seqNumber & 0x00FF);
   buffer[3] = frame->endOfPacket;
-  buffer[4] = frame->payloadLength;
 
 #ifdef VERBOSE_XMIT_DEBUG
   printf("Transmitting frame with type %X, seqeuence number %X, end of packet %X, payload of length %X\n", 
@@ -323,14 +331,14 @@ uint8_t transmitFrame(struct frameInfo *frame, struct linkLayerSync *syncInfo)
 
   // And now we can do the same with the payload
   for(i = 0; i < (frame->payloadLength); i++) {
-    buffer[i+5] = frame->payload[i];
+    buffer[i+(FRAMING_SIZE - 2)] = frame->payload[i];
   }
 
   // Populate the checksum field
-  checksum = generateFCS(buffer, frame->payloadLength + 5);
-  cout << "[DataLink] Calculated FCS as " << checksum << endl;
-  buffer[5 + frame->payloadLength] = (uint8_t)(checksum >> 8);
-  buffer[6 + frame->payloadLength] = (uint8_t)(checksum & 0x00FF);
+  checksum = generateFCS(buffer, frame->payloadLength + FRAMING_SIZE - 2);
+  printf("[DataLink] Calculated FCS as %04X\n", checksum);
+  buffer[(FRAMING_SIZE + frame->payloadLength) - 2] = (uint8_t)(checksum >> 8);
+  buffer[(FRAMING_SIZE + frame->payloadLength) - 1] = (uint8_t)(checksum & 0x00FF);
 
   // Wait for window to open up
   while(syncInfo->windowSize == 0);
@@ -339,7 +347,7 @@ uint8_t transmitFrame(struct frameInfo *frame, struct linkLayerSync *syncInfo)
 
 #ifdef VERBOSE_XMIT_DEBUG
     printf("Transmitting message. Contents: ");
-    for(int j = 0; j < 7+frame->payloadLength; j++) {
+    for(int j = 0; j < FRAMING_SIZE+frame->payloadLength; j++) {
       printf("%02X ", buffer[j]);
     }
     printf("\n");
@@ -352,7 +360,7 @@ uint8_t transmitFrame(struct frameInfo *frame, struct linkLayerSync *syncInfo)
   // End Critical Section
 
   // Block until frame is sent to physical
-  if((toReturn = dl_to_ph_send(syncInfo->socket, buffer, (7 + frame->payloadLength)) ) != (7 + frame->payloadLength)) {
+  if((toReturn = dl_to_ph_send(syncInfo->socket, buffer, (FRAMING_SIZE + frame->payloadLength)) ) != (FRAMING_SIZE + frame->payloadLength)) {
     cout << "[DataLink] Error sending frame to physical." << endl;
   }
   cout << "[DataLink] Sent " << toReturn << " byte frame to physical with sequence number " << frame->seqNumber << endl;
@@ -375,10 +383,8 @@ uint8_t sendAck(uint16_t seqNumber, struct linkLayerSync *syncInfo)
   ack[0] = 0x01; // First byte is 1, indicating an ACK
   ack[1] = (uint8_t)(seqNumber >> 8); // First 8 bits of sequence number
   ack[2] = (uint8_t)(seqNumber & 0x00FF); // Next 8 bits of sequence number
-  ack[3] = 0; // This field ignored
-  ack[4] = 0; // This field ignored
-  ack[5] = ack[1]; // FCS field matches sequence number
-  ack[6] = ack[2];
+  ack[3] = ack[1]; // FCS field matches sequence number
+  ack[4] = ack[2];
 
   // Block until frame is sent to physical
   if((toReturn = dl_to_ph_send(syncInfo->socket, ack, ACK_SIZE) ) != ACK_SIZE) {
@@ -404,22 +410,23 @@ uint8_t disassembleFrame(struct frameInfo *frame, uint8_t *received, int receive
   if(frame == 0 || received == 0) {
     return 1;
   } else if(receivedLen < ACK_SIZE || receivedLen > MAX_FRAME_SIZE) {
-    cout << "[DataLink] Received frame with bad size (over 150 or under 7)!" << endl;
+    cout << "[DataLink] Received frame with bad size (over " << MAX_FRAME_SIZE << " or under " << ACK_SIZE << ")!" << endl;
     return 1;
   }
 
   frame->frameType = received[0];
   frame->seqNumber = ((uint16_t)(received[1]) << 8) + received[2];
-  frame->endOfPacket = received[3];
-  frame->payloadLength = received[4];
 
-  if(frame->payloadLength > MAX_PAYLOAD_SIZE) {
-    cout << "[DataLink] Oversized payload specified by received frame!" << endl;
-    return 1;
+  if(frame->frameType == 0) {
+    frame->endOfPacket = received[3];
+    frame->payloadLength = receivedLen - FRAMING_SIZE;
+  } else {
+    frame->endOfPacket = 0;
+    frame->payloadLength = 0;
   }
 
-  for(i = 5; i <(5 + frame->payloadLength); i++) {
-    frame->payload[i-5] = received[i];
+  for(i = (FRAMING_SIZE - 2); i < ((FRAMING_SIZE - 2) + frame->payloadLength); i++) {
+    frame->payload[i-(FRAMING_SIZE - 2)] = received[i];
   }
 
   expectedChecksum = generateFCS(received, (receivedLen - 2));
@@ -432,7 +439,7 @@ uint8_t disassembleFrame(struct frameInfo *frame, uint8_t *received, int receive
   if(frame->frameType == 0 && expectedChecksum != receivedChecksum) {
     cout << "[DataLink] Received frame with bad FCS (expected " << expectedChecksum << ", received " << receivedChecksum << ")!" << endl;
     return 1;
-  } else if(frame->frameType == 1 && (received[1] != received[5] || received[2] != received[6])) { // Same for ACK frames
+  } else if(frame->frameType == 1 && (received[1] != received[3] || received[2] != received[4])) { // Same for ACK frames
     cout << "[DataLink] Received ACK with bad FCS!" << endl;
     return 1;
   }

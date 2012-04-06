@@ -9,11 +9,13 @@ void * DataLinkLayer( void * longPointer );
 // Size of the sliding window. 1 for Go Back 1, 4 for Go Back 4.
 #define WINDOW_SIZE 1
 // Maximum size of an acceptable payload, in bytes
-#define MAX_PAYLOAD_SIZE 143
+#define MAX_PAYLOAD_SIZE 150
 // Maximum size of an acceptable frame, in bytes
-#define MAX_FRAME_SIZE 150
+#define MAX_FRAME_SIZE 156
+// Size of the framing bytes
+#define FRAMING_SIZE 6
 // Size of an ACK frame, in bytes
-#define ACK_SIZE 7
+#define ACK_SIZE 5
 
 // This is really verbose debug on checksum generation.
 #ifdef VERBOSE_CHECKSUM_DEBUG
