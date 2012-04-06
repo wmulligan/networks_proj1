@@ -21,7 +21,7 @@ void *DlToTcpHandler( void *longPointer );
 
 void *PhysicalLayer( void *longPointer )
 {
-  int iSocket = (int) longPointer; // socket handle
+  intptr_t iSocket = (intptr_t) longPointer; // socket handle
   pthread_t iTcpToDlThreadId; // physical layer receive thread id
   pthread_t iDlToTcpThreadId; // physical layer send thread id
   
@@ -38,7 +38,7 @@ void *PhysicalLayer( void *longPointer )
 
 void *TcpToDlHandler( void *longPointer )
 {
-  int iSocket = (int) longPointer; // client socket handle
+  intptr_t iSocket = (intptr_t) longPointer; // client socket handle
   int iRecvLength; // length of recieved data
   int iSendLength; // length of sent data
   
@@ -65,7 +65,7 @@ void *TcpToDlHandler( void *longPointer )
 
 void *DlToTcpHandler( void *longPointer )
 {
-  int iSocket = (int) longPointer; // client socket handle
+  intptr_t iSocket = (intptr_t) longPointer; // client socket handle
   int iRecvLength; // length of received data
   int iSendLength; // length of sent data
 

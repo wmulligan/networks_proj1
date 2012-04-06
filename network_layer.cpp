@@ -21,7 +21,7 @@ void * DlToApHandler( void * longPointer );
 
 void * NetworkLayer( void * longPointer )
 {
-  int iSocket = (int) longPointer; // socket handle
+  intptr_t iSocket = (intptr_t) longPointer; // socket handle
   pthread_t iApToDlThreadId; // physical layer receive thread id
   pthread_t iDlToApThreadId; // physical layer send thread id
   
@@ -38,7 +38,7 @@ void * NetworkLayer( void * longPointer )
 
 void * ApToDlHandler( void * longPointer )
 {
-  int iSocket = (int) longPointer; // client socket handle
+  intptr_t iSocket = (intptr_t) longPointer; // client socket handle
   int iRecvLength; // length of recieved data
   int iSendLength; // length of sent data
   
@@ -68,7 +68,7 @@ void * ApToDlHandler( void * longPointer )
 
 void * DlToApHandler( void * longPointer )
 {
-  int iSocket = (int) longPointer; // client socket handle
+  intptr_t iSocket = (intptr_t) longPointer; // client socket handle
   int iRecvLength; // length of received data
   int iSendLength; // length of sent data
 

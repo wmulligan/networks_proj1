@@ -21,7 +21,7 @@ void * PhToNwHandler( void * longPointer );
 
 void * DataLinkLayer( void * longPointer )
 {
-  int iSocket = (int) longPointer; // socket handle
+  intptr_t iSocket = (intptr_t) longPointer; // socket handle
   pthread_t iNwToPhThreadId; // physical layer receive thread id
   pthread_t iPhToNwThreadId; // physical layer send thread id
   
@@ -38,7 +38,7 @@ void * DataLinkLayer( void * longPointer )
 
 void * NwToPhHandler( void * longPointer )
 {
-  int iSocket = (int) longPointer; // client socket handle
+  intptr_t iSocket = (intptr_t) longPointer; // client socket handle
   int iRecvLength; // length of recieved data
   int iSendLength; // length of sent data
   
@@ -68,7 +68,7 @@ void * NwToPhHandler( void * longPointer )
 
 void * PhToNwHandler( void * longPointer )
 {
-  int iSocket = (int) longPointer; // client socket handle
+  intptr_t iSocket = (intptr_t) longPointer; // client socket handle
   int iRecvLength; // length of received data
   int iSendLength; // length of sent data
 

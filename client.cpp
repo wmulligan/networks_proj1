@@ -64,6 +64,9 @@ int main(int argc, char *argv[])
   pthread_join(iNetworkThreadId, NULL);
   pthread_join(iApplicationThreadId, NULL);
   
+  //wait for command
+  cout << "[Client]";
+
   cout << "[Client] Terminating." << endl;
   close(iSocket);
 }
