@@ -28,7 +28,7 @@ void * ApplicationLayer( void * longPointer )
   
     char pData[256];
     cin.getline(pData, 256);
-    int iDataLength = strlen(pData);
+    int iDataLength = strlen(pData)+1;
     
     cout << "[Application] Sending: " << pData << endl;
     
