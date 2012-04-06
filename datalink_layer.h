@@ -15,6 +15,17 @@ void * DataLinkLayer( void * longPointer );
 // Size of an ACK frame, in bytes
 #define ACK_SIZE 7
 
+// This is really verbose debug on checksum generation.
+#ifdef VERBOSE_CHECKSUM_DEBUG
+#undefine VERBOSE_CHECKSUM_DEBUG
+#endif
+// Verbose debug on receive
+#define VERBOSE_RECEIVE_DEBUG
+// Verbose debug on transmit
+#define VERBOSE_XMIT_DEBUG
+// Verbose interlayer communication debug
+#define VERBOSE_IPC_DEBUG
+
 // Frame info structure: Contains all fields in a completed frame, in order.
 struct frameInfo {
   uint8_t frameType;
@@ -28,9 +39,8 @@ struct frameInfo {
 struct linkLayerSync {
   int socket;
   uint8_t windowSize;
-  uint16_t sendSequence;
+  uint16_t mainSequence;
   uint16_t ackSequence;
-  uint16_t recvSequence;
   pthread_spinlock_t lock; // Used for sync between send and receive threads
 };
 

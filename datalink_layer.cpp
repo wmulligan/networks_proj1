@@ -21,7 +21,7 @@ using namespace std;
 // prototypes
 void * NwToPhHandler( void * longPointer );
 void * PhToNwHandler( void * longPointer );
-uint16_t generateFCS(struct frameInfo *frame);
+uint16_t generateFCS(uint8_t *frame, uint8_t length);
 uint8_t sendAck(uint16_t seqNumber, struct linkLayerSync *syncInfo);
 uint8_t transmitFrame(struct frameInfo *frame, struct linkLayerSync *syncInfo);
 void handleAck(struct frameInfo *frame, struct linkLayerSync *syncInfo);
@@ -37,8 +37,7 @@ void * DataLinkLayer( void * longPointer )
   // Populate the syncronization structure assigned to the threads
   syncInfo->socket = iSocket;
   syncInfo->windowSize = WINDOW_SIZE;
-  syncInfo->sendSequence = 0;
-  syncInfo->recvSequence = 0;
+  syncInfo->mainSequence = 0;
   syncInfo->ackSequence = 0;
   // Initialize the spinlock for syncronization
   pthread_spin_init(&(syncInfo->lock), 0);
@@ -79,6 +78,10 @@ void * NwToPhHandler( void * longPointer )
       break;
     }
     cout << "[DataLink] Received " << iRecvLength << " byte packet from network." << endl;
+
+#ifdef VERBOSE_IPC_DEBUG
+    printf("[DataLink] Received string %s from Network Layer\n", pPacket);
+#endif
     
     if(iRecvLength > MAX_PAYLOAD_SIZE) {
       // Handle packets larger than maximum allowable payload size here
@@ -155,16 +158,27 @@ void * PhToNwHandler( void * longPointer )
     }
     cout << "[DataLink] Received " << iRecvLength << " byte frame from physical." << endl;
 
+#ifdef VERBOSE_RECEIVE_DEBUG
+    printf("Received message. Contents: ");
+    for(int j = 0; j < iRecvLength; j++) {
+      printf("%02X ", pFrame[j]);
+    }
+    printf("\n");
+#endif
+
     receivedFrame = (struct frameInfo *)malloc(sizeof(struct frameInfo));
 
     // Disassemble the frame
     if(1 == disassembleFrame(receivedFrame, pFrame, iRecvLength)) {
       cout << "[DataLink] Received invalid frame, ignoring!" << endl;
+      free(receivedFrame);
+      continue;
     }
 
     // Check if we received an ACK
     if(receivedFrame->frameType == 1) {
       handleAck(receivedFrame, syncInfo);
+      cout << "[DataLink] Processed ACK frame" << endl;
       free(receivedFrame);
       continue;
     } else if(receivedFrame->frameType != 0) {
@@ -174,38 +188,51 @@ void * PhToNwHandler( void * longPointer )
       continue;
     }
 
+#ifdef VERBOSE_RECEIVE_DEBUG
+    printf("Received message had payload: ");
+    for(int p = 0; p < receivedFrame->payloadLength; p++) {
+      printf("%02X ", receivedFrame->payload[p]);
+    }
+    printf("\n");
+#endif
+
     // Check sequence number. See if it's what we were expecting.
-    if(receivedFrame->seqNumber != syncInfo->recvSequence) {
+    if(receivedFrame->seqNumber != syncInfo->mainSequence) {
       cout << "[DataLink] Received out of sequence frame (expected sequence number "
-	   << syncInfo->recvSequence << ", received " << receivedFrame->seqNumber << ")." << endl;
+	   << syncInfo->mainSequence << ", received " << receivedFrame->seqNumber << ")." << endl;
       free(receivedFrame);
       continue;
     } else {
       // Good sequence number, increment next expected received packet
       // Critical Section
       pthread_spin_lock(&(syncInfo->lock));
-      syncInfo->recvSequence++; // Increment expected packet to receive
+      syncInfo->mainSequence++; // Increment expected packet to receive
+      syncInfo->ackSequence++; // Increment ACK we're expecting, as we aren't using this sequence number anymore.
       pthread_spin_unlock(&(syncInfo->lock));
       // End Critical Section
     }
 
     // Block until ack is sent to physical
-    sendAck(receivedFrame->seqNumber, syncInfo);
+    if(sendAck(receivedFrame->seqNumber, syncInfo) != 7) {
+      cout << "[DataLink] Sending ack for sequence number " << receivedFrame->seqNumber << " failed!" << endl;
+      free(receivedFrame);
+      continue;
+   }
 
     // Ack has been sent. Extract contents of frame and forward them up to network layer.
     if(receivedFrame->endOfPacket != 1) {
       if(receivedFrame->payloadLength != MAX_PAYLOAD_SIZE) {
-	cout << "Frame with invalid size and no end-of-packet marker received!" << endl;
+	cout << "[DataLink] Frame with invalid size and no end-of-packet marker received!" << endl;
 	free(receivedFrame);
 	continue; // Bad frame!
       }
       for(int i = 0; i < receivedFrame->payloadLength; i++) {
 	stash[i] = receivedFrame->payload[i];
-	stashReady = 1;
       }
+      stashReady = 1;
     } else {
       // Built on the assumption that we receive no more than 2 packets in a row without endOfFrame set.
-      if(stashReady = 1) {
+      if(stashReady == 1) {
 	stashReady = 0;
 	iPacketLength = receivedFrame->payloadLength + MAX_PAYLOAD_SIZE;
 	pPacket = (char *)malloc(iPacketLength);
@@ -224,6 +251,14 @@ void * PhToNwHandler( void * longPointer )
       }
     }
     
+#ifdef VERBOSE_IPC_DEBUG
+    printf("[DataLink] Sent following packet to network layer: ");
+    for(int k = 0; k < iPacketLength; k++) {
+      printf("%02X ", pPacket[k]);
+    }
+    printf("\n");
+#endif
+
     // Block until packet is sent to network
     if ( ( iSendLength = dl_to_nw_send( iSocket, pPacket, iPacketLength ) ) != iPacketLength ) {
       cout << "[DataLink] Error sending packet to network." << endl;
@@ -233,7 +268,7 @@ void * PhToNwHandler( void * longPointer )
     }
 
     free(receivedFrame);
-    free(pPacket);
+    //free(pPacket);
     cout << "[DataLink] Sent " << iSendLength << " byte packet to network." << endl;
   }
 }
@@ -250,15 +285,20 @@ uint8_t transmitFrame(struct frameInfo *frame, struct linkLayerSync *syncInfo)
   int i, toReturn = 0;
 
   if(frame == 0) {
-    cout << "Invalid frame passed to transmitFrame! Ignoring!" << endl;
+    cout << "[DataLink] Invalid frame passed to transmitFrame! Ignoring!" << endl;
+    return 0x00;
+  }
+
+  if(frame->payloadLength > MAX_PAYLOAD_SIZE || frame->payloadLength == 0) {
+    cout << "[DataLink] Frame with bad payload length received!" << endl;
     return 0x00;
   }
 
   // Set sequence number for this frame
-  frame->seqNumber = syncInfo->sendSequence;
+  frame->seqNumber = syncInfo->mainSequence;
   // Critical Section
   pthread_spin_lock(&(syncInfo->lock));
-  syncInfo->sendSequence++; // Increment sequence number for next sent frame
+  syncInfo->mainSequence++; // Increment sequence number for next sent frame
   pthread_spin_unlock(&(syncInfo->lock));
   // End Critical Section
 
@@ -270,13 +310,25 @@ uint8_t transmitFrame(struct frameInfo *frame, struct linkLayerSync *syncInfo)
     buffer[i] = ((uint8_t *)frame)[i];
   }
 
+  buffer[0] = frame->frameType;
+  buffer[1] = (uint8_t)(frame->seqNumber >> 8);
+  buffer[2] = (uint8_t)(frame->seqNumber & 0x00FF);
+  buffer[3] = frame->endOfPacket;
+  buffer[4] = frame->payloadLength;
+
+#ifdef VERBOSE_XMIT_DEBUG
+  printf("Transmitting frame with type %X, seqeuence number %X, end of packet %X, payload of length %X\n", 
+	 frame->frameType, frame->seqNumber, frame->endOfPacket, frame->payloadLength);
+#endif
+
   // And now we can do the same with the payload
-  for(i = 5; i < (5 + frame->payloadLength); i++) {
-    buffer[i] = ((uint8_t *)frame)[i];
+  for(i = 0; i < (frame->payloadLength); i++) {
+    buffer[i+5] = frame->payload[i];
   }
 
   // Populate the checksum field
-  checksum = generateFCS(frame);
+  checksum = generateFCS(buffer, frame->payloadLength + 5);
+  cout << "[DataLink] Calculated FCS as " << checksum << endl;
   buffer[5 + frame->payloadLength] = (uint8_t)(checksum >> 8);
   buffer[6 + frame->payloadLength] = (uint8_t)(checksum & 0x00FF);
 
@@ -284,6 +336,14 @@ uint8_t transmitFrame(struct frameInfo *frame, struct linkLayerSync *syncInfo)
   while(syncInfo->windowSize == 0);
 
   // Transmit our frame
+
+#ifdef VERBOSE_XMIT_DEBUG
+    printf("Transmitting message. Contents: ");
+    for(int j = 0; j < 7+frame->payloadLength; j++) {
+      printf("%02X ", buffer[j]);
+    }
+    printf("\n");
+#endif
 
   // Critical Section
   pthread_spin_lock(&(syncInfo->lock));
@@ -295,9 +355,9 @@ uint8_t transmitFrame(struct frameInfo *frame, struct linkLayerSync *syncInfo)
   if((toReturn = dl_to_ph_send(syncInfo->socket, buffer, (7 + frame->payloadLength)) ) != (7 + frame->payloadLength)) {
     cout << "[DataLink] Error sending frame to physical." << endl;
   }
-  cout << "[DataLink] Sent " << (7 + frame->payloadLength) << " byte frame to physical with sequence number " << frame->seqNumber << endl;
+  cout << "[DataLink] Sent " << toReturn << " byte frame to physical with sequence number " << frame->seqNumber << endl;
 
-  free(buffer);
+  //free(buffer);
 
   return toReturn;
 }
@@ -326,7 +386,7 @@ uint8_t sendAck(uint16_t seqNumber, struct linkLayerSync *syncInfo)
   }
   cout << "[DataLink] Sent ACK frame to physical with sequence number " << seqNumber << endl;
 
-  free(ack);
+  //free(ack);
 
   return toReturn;
 }
@@ -339,6 +399,7 @@ uint8_t sendAck(uint16_t seqNumber, struct linkLayerSync *syncInfo)
 uint8_t disassembleFrame(struct frameInfo *frame, uint8_t *received, int receivedLen)
 {
   int i;
+  uint16_t expectedChecksum, receivedChecksum;
 
   if(frame == 0 || received == 0) {
     return 1;
@@ -361,9 +422,15 @@ uint8_t disassembleFrame(struct frameInfo *frame, uint8_t *received, int receive
     frame->payload[i-5] = received[i];
   }
 
+  expectedChecksum = generateFCS(received, (receivedLen - 2));
+  receivedChecksum = 0;
+  receivedChecksum += received[receivedLen - 2];
+  receivedChecksum = receivedChecksum << 8;
+  receivedChecksum += received[receivedLen - 1];
+
   // Verify checksum for data frames
-  if(frame->frameType == 0 && generateFCS(frame) != ((uint16_t)(received[receivedLen - 2]) << 8) + received[receivedLen - 1]) {
-    cout << "[DataLink] Received frame with bad FCS!" << endl;
+  if(frame->frameType == 0 && expectedChecksum != receivedChecksum) {
+    cout << "[DataLink] Received frame with bad FCS (expected " << expectedChecksum << ", received " << receivedChecksum << ")!" << endl;
     return 1;
   } else if(frame->frameType == 1 && (received[1] != received[5] || received[2] != received[6])) { // Same for ACK frames
     cout << "[DataLink] Received ACK with bad FCS!" << endl;
@@ -379,8 +446,10 @@ uint8_t disassembleFrame(struct frameInfo *frame, uint8_t *received, int receive
 void handleAck(struct frameInfo *frame, struct linkLayerSync *syncInfo)
 {
   if(frame->seqNumber != syncInfo->ackSequence) {
+    cout << "[DataLink] Received bad ACK for sequence number " << frame->seqNumber << " (expecting " << syncInfo->ackSequence << ")" << endl;
     return;
   } else {
+    cout << "[DataLink] Received ACK for sequence number " << frame->seqNumber << endl;
     // Critical Section
     pthread_spin_lock(&(syncInfo->lock));
     syncInfo->ackSequence++; // Increment next frame we expect an ACK for
@@ -393,39 +462,44 @@ void handleAck(struct frameInfo *frame, struct linkLayerSync *syncInfo)
 /**
  * Generate Frame Check Sequence for a frame from its frameInfo struct
  */
-uint16_t generateFCS(struct frameInfo *frame)
+uint16_t generateFCS(uint8_t *frame, uint8_t length)
 {
   uint16_t checksum = 0x0000;
-  uint8_t payloadLength = frame->payloadLength;
-  uint8_t pos = 3;
+  int i = 1;
 
-  // Null check
-  if(frame == 0) {
-    return 0x00;
+#ifdef VERBOSE_CHECKSUM_DEBUG
+  printf("Checksumming message. Contents: ");
+  for(int j = 0; j < length; j++) {
+    printf("%02X ", frame[j]);
+  }
+  printf("\n");
+#endif
+
+  if(length < 2) {
+    return 0;
   }
 
-  // Add starting values
   checksum += ((uint16_t *)frame)[0];
+  length -= 2;
 
-  // Fold on static fields
-  checksum ^= ((uint16_t *)frame)[1];
-  if(payloadLength > 0) {
-    checksum ^= ((uint16_t *)frame)[2];
-    payloadLength--;
-  } else {
-    checksum ^= ((uint16_t *)frame)[2] & 0xFF00;
+#ifdef VERBOSE_CHECKSUM_DEBUG
+  cout << "Checksum start was " << checksum << endl;
+#endif
+
+  while(length > 2) {
+    checksum ^= ((uint16_t *)frame)[i];
+    length -= 2;
+    i++;
+#ifdef VERBOSE_CHECKSUM_DEBUG
+    cout << "Checksum now " << checksum << endl;
+#endif
   }
 
-  // While we have over 2 bytes of payload left to fold in, fold in 16 bit quantities
-  while(payloadLength > 2) {
-    checksum ^= ((uint16_t *)frame)[pos];
-    pos++;
-    payloadLength -= 2;
-  }
-
-  // If we have a byte left over, fold it in.
-  if(payloadLength == 1) {
-    checksum ^= ((uint16_t *)frame)[pos] & 0xFF00; 
+  if(length == 1) {
+    checksum ^= frame[length - 1];
+#ifdef VERBOSE_CHECKSUM_DEBUG
+    cout << "Checksum now " << checksum << endl;
+#endif
   }
 
   return checksum;
