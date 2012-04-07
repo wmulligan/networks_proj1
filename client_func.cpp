@@ -38,7 +38,7 @@ int validateInput(char *input){
 	}
 
 	//check for all possible commands 
-	if (words.size()>=2){
+	if (words.size()>=1){
 		if ((words[0].compare("add") == 0 || words[0].compare("ADD")==0) && words.size()==4)
 			valid=1;
 		

@@ -41,33 +41,92 @@ char* processCommand(char *data, MYSQL* conn){
 
 			//prepare query to create account
 			sprintf(query, "INSERT INTO bodies (first_name, last_name, location) VALUES ('%s','%s','%s')",(char*)words[1].c_str(),(char*)words[2].c_str(),(char*)words[3].c_str());
-
+			
 			//run query		
 			qReturn = mysql_query(conn, query);
+			
 			if (qReturn != 0) {
 			 //if failed
 				cout<<"[Application] Mysql Error: "<<mysql_error(conn)<<endl;
 				reply[0]= '0';
 				strcat(reply, " Mysql Error");
 			}
-		
+			
 			//prepare success reply msg
 			else {
+				
 				memset(query, 0, sizeof(query));//clean query buffer
 				//get id of inserted body
-				sprintf(query,"SELECT id_number FROM BODIES WHERE first_name='%s' and last_name='%s' and location='%s'",(char*)words[1].c_str(),(char*)words[2].c_str(),(char*)words[3].c_str());
+				sprintf(query,"SELECT id_number FROM bodies WHERE first_name='%s' and last_name='%s' and location='%s'  ORDER BY id_number DESC LIMIT 1",(char*)words[1].c_str(),(char*)words[2].c_str(),(char*)words[3].c_str());
 				qReturn = mysql_query(conn, query);
+				if (qReturn != 0) {
+				 	//if failed
+					cout<<"[Application] Mysql Error: "<<mysql_error(conn)<<endl;
+					reply[0]= '0';
+					strcat(reply, " Mysql Error");
+				}
+
 				//fetch result
 				result = mysql_store_result(conn);
-					
 				
+				if (result && mysql_num_rows(result)!=0){	
+					 
+					row = mysql_fetch_row(result);
+
+					reply[0]= '1';
+					sprintf(tmp, " Added. ID: %s",row[0]);
+					strcat(reply, tmp);
+					selectID=atoi(row[0]);
+				}
 				//complete
 				mysql_free_result(result);
 			}
 	    		
 		}
 		
-		if ((words[0].compare("SELECT") == 0 || words[0].compare("select")==0) && words.size()==2){
+
+
+		else if ((words[0].compare("UNKNOWN") == 0 || words[0].compare("unknown")==0) && words.size()==1){
+			memset(reply, 0, sizeof(reply));//clean reply buffer
+			memset(query, 0, sizeof(query));//clean reply buffer
+			//process UNKNOWN
+			//build query				
+			sprintf(query,"SELECT id_number,location FROM bodies WHERE status=%i",0);
+			qReturn = mysql_query(conn, query);
+			if (qReturn != 0) {
+					//if failed
+					cout<<"[Application] Mysql Error: "<<mysql_error(conn)<<endl;
+					reply[0]= '0';
+					strcat(reply, " Mysql Error");
+			}
+			else {
+
+				//fetch result
+				result = mysql_store_result(conn);
+						
+				if (result && mysql_num_rows(result)!=0){	
+					reply[0]= '1' ;
+					strcat(reply, " ");
+					while(row = mysql_fetch_row(result)){
+						memset(tmp,0,sizeof(tmp));
+						sprintf(tmp, " %s:%s\n", row[0],row[1]);
+						strcat(reply, tmp);
+					}
+				}
+				else {
+				//no unknowns
+					reply[0]= '0';
+					strcat(reply, " No unidentified bodies.");
+
+				}
+		      }
+	
+
+
+			
+		}
+		
+		else if ((words[0].compare("SELECT") == 0 || words[0].compare("select")==0) && words.size()==2){
 			//process SELECT id command
 			memset(query, 0, sizeof(query));//clean query buffer
 			memset(reply, 0, sizeof(reply));//clean reply buffer
@@ -79,7 +138,7 @@ char* processCommand(char *data, MYSQL* conn){
 			if (qReturn != 0) {
 				cout<<"[Application] Mysql Error: "<<mysql_error(conn)<<endl;
 			}
-			//segfault
+			
 			//get result and prepare reply msg
 	    		result = mysql_store_result(conn);
 	    		if(mysql_num_rows(result) == 1){
@@ -98,41 +157,110 @@ char* processCommand(char *data, MYSQL* conn){
 
 				
 		}
-		if (selectID==1){//if an id has been selected
+		else if (selectID==1){//if an id has been selected
 			if ((words[0].compare("QUERY") == 0 || words[0].compare("query")==0) && words.size()==2){
 				memset(query, 0, sizeof(query));//clean query buffer
 				memset(reply, 0, sizeof(reply));//clean reply buffer
 				if (words[1].compare("STATUS") == 0 || words[1].compare("status")==0) {
-				//process QUERY STATUS update
-				//build query				
-				sprintf(query,"SELECT status FROM BODIES WHERE id_number=%i",selectID);
-				qReturn = mysql_query(conn, query);
-				//fetch result
-				result = mysql_store_result(conn);
-			    	row = mysql_fetch_row(result);
+					//process QUERY STATUS 
+					//build query				
+					sprintf(query,"SELECT status FROM bodies WHERE id_number=%i",selectID);
+					qReturn = mysql_query(conn, query);
+					if (qReturn != 0) {
+						 	//if failed
+							cout<<"[Application] Mysql Error: "<<mysql_error(conn)<<endl;
+							reply[0]= '0';
+							strcat(reply, " Mysql Error");
+					}
+					else {
+
+						//fetch result
+						result = mysql_store_result(conn);
+						
+						if (result && mysql_num_rows(result)!=0){	
+							 
+							row = mysql_fetch_row(result);
+
+							memset(tmp,0,sizeof(tmp));
+
+							reply[0]= '1';
+							row[0]+='\0';
+							if (strcmp(row[0],"0")==0)
+								sprintf(tmp, " Status: Unidentified.");
+							else if (strcmp(row[0],"1")==0)
+								sprintf(tmp, " Status: Identified.");
+
+							strcat(reply, tmp);
+						}
+					      }
 				
-				memset(tmp,0,sizeof(tmp));
-				/*if (row[0]==0)
-					sprintf(tmp, " Unidentified.");
-				else if (row[0]==1)
-					sprintf(tmp, " Identified.");
-				*/
-				reply[0]= '1';
-				strcat(reply, tmp);
-					
-					
 				}
 				//if requesting name
 				else if (words[1].compare("NAME") == 0 || words[1].compare("name")==0){
+					//process NAME
+					//build query				
+					sprintf(query,"SELECT first_name,last_name FROM bodies WHERE id_number=%i",selectID);
+					qReturn = mysql_query(conn, query);
+					if (qReturn != 0) {
+						 	//if failed
+							cout<<"[Application] Mysql Error: "<<mysql_error(conn)<<endl;
+							reply[0]= '0';
+							strcat(reply, " Mysql Error");
+					}
+					else {
 
+						//fetch result
+						result = mysql_store_result(conn);
+						
+						if (result && mysql_num_rows(result)!=0){	
+							 
+							row = mysql_fetch_row(result);
+
+							memset(tmp,0,sizeof(tmp));
+
+							reply[0]= '1';
+							sprintf(tmp, " First Name: %s, Last Name: %s", row[0],row[1]);
+							strcat(reply, tmp);
+						}
+					      }
+				
 
 
 
 				}
 				//if requesting location
 				else if (words[1].compare("LOCATION") == 0 || words[1].compare("location")==0){
+					//process QUERY LOCATION
+					//build query				
+					sprintf(query,"SELECT location FROM bodies WHERE id_number=%i",selectID);
+					qReturn = mysql_query(conn, query);
+					cout<<"HERE"<<reply<<endl;
+					if (qReturn != 0) {
+						 	//if failed
+							cout<<"[Application] Mysql Error: "<<mysql_error(conn)<<endl;
+							reply[0]= '0';
+							strcat(reply, " Mysql Error");
+					}
+					else {
+
+						//fetch result
+						result = mysql_store_result(conn);
+						
+						if (result && mysql_num_rows(result)!=0){	
+							 
+							row = mysql_fetch_row(result);
+
+							memset(tmp,0,sizeof(tmp));
+
+							reply[0]= '1';
+							sprintf(tmp, " Location: %s", row[0]);
+							strcat(reply, tmp);
+						}
+					      }
+				
 
 
+	
 
 				}
 				
@@ -140,7 +268,7 @@ char* processCommand(char *data, MYSQL* conn){
 				mysql_free_result(result);
 			}
 
-			if ((words[0].compare("UPDATE") == 0 || words[0].compare("update")==0) && words.size()>2){
+			if ((words[0].compare("UPDATE") == 0 || words[0].compare("update")==0) && words.size()>2 && userType==1){
 				memset(query, 0, sizeof(query));//clean query buffer
 				memset(reply, 0, sizeof(reply));//clean reply buffer
 			
@@ -175,28 +303,25 @@ char* processCommand(char *data, MYSQL* conn){
 				reply[0]= '1';
 			}
 		}
+		
 		else if (selectID==0){
 				//no id selected 
 				//send reply
 				reply[0]= '0';
 				strcat(reply, " Select an ID first!");
 			}
-
-
-		if ((words[0].compare("UNKNOWN") == 0 || words[0].compare("unknown")==0) && words.size()==1){
-			
-		}
 			
 		
 	return reply;
 
 }
 
-/* checks if command is update pr query picture,
+/* checks if command is update or query picture,
    returns 1 for update, 2 for query */
 int isPicture(char *data){
 	int picture=0;
-	//convert it to string
+	
+        //convert it to string
 	istringstream in(data);
 
 	//tokenize string to validate commands
@@ -204,18 +329,20 @@ int isPicture(char *data){
 	vector <string> words;
 	  
 	while(in >> word) {
-	    words.push_back( word );
-	}
-
-	//if requesting picture
-	if ( (words[0].compare("QUERY") == 0 || words[0].compare("query")==0) && (words[1].compare("PICTURE") == 0 || words[1].compare("picture")==0)&& words.size()==2 ){
-		picture=2;	
-	}
-	//if updating picture
-	else if ((words[0].compare("QUERY") == 0 || words[0].compare("query")==0) || (words[1].compare("PICTURE") == 0 || words[1].compare("picture")==0) && words.size()==3){
-		picture=1;
+	    words.push_back(word);
 	}
 	
+	if ((words[0].compare("QUERY") == 0 || words[0].compare("query")==0) && (words[1].compare("PICTURE") == 0 || words[1].compare("picture")==0)){
+
+		//if requesting picture
+		if (words.size()==2 ){
+			picture=2;	
+		}
+		//if updating picture
+		else if  (words.size()==3){
+			picture=1;
+		}
+	}
 	return picture;
 
 }
@@ -226,6 +353,7 @@ char* processLogin(char *data, MYSQL* conn){
 	char query[500];
 	int qReturn;
 	MYSQL_RES *result;
+	MYSQL_ROW row;
 
 	//convert it to string
 	istringstream in(data);
@@ -244,7 +372,7 @@ char* processLogin(char *data, MYSQL* conn){
 	//check for login or create account command
 	if ((words[0].compare("login") == 0 || words[0].compare("LOGIN")==0) && words.size()==3){
 		// query to be used for authentication
-		sprintf(query, "SELECT * FROM users where username='%s' and password='%s'",(char*)words[1].c_str(),(char*)words[2].c_str());
+		sprintf(query, "SELECT authorized FROM users where username='%s' and password='%s'",(char*)words[1].c_str(),(char*)words[2].c_str());
 		//run query		
 		qReturn = mysql_query(conn, query);
 		if (qReturn != 0) {
@@ -253,9 +381,17 @@ char* processLogin(char *data, MYSQL* conn){
 		memset(reply, 0, sizeof(reply));
 		//get result and prepare reply msg
     		result = mysql_store_result(conn);
-    		if(mysql_num_rows(result) == 1){
+    		if(result && mysql_num_rows(result) == 1){
 			reply[0]= '1';
-			userType=1;
+
+			//check user type
+			row = mysql_fetch_row(result);
+
+			if (strcmp(row[0],"0")==0)
+				userType=2; //query user
+			else if (strcmp(row[0],"1")==0)
+				userType=1; //admin user
+
     		}
 		else {
 			reply[0]= '0'; //failed
@@ -285,6 +421,7 @@ char* processLogin(char *data, MYSQL* conn){
 		else {
 			reply[0]= '1';
 			strcat(reply, " Account Created.");
+			userType=2;
 		}
  		
 		

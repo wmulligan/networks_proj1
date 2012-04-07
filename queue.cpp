@@ -62,6 +62,7 @@ int ph_to_dl_recv( int id, char ** pFrame ) {
   sem_wait(&sem_ph_to_dl);
   if ( ! ph_to_dl[id].empty() ) {
     sBuffer *buffer = ph_to_dl[id].front();
+    ph_to_dl[id].pop();
     *pFrame = buffer->pBuffer;
     return buffer->iLength;
   }
@@ -79,6 +80,7 @@ int dl_to_ph_recv( int id, char ** pFrame ) {
   sem_wait(&sem_dl_to_ph);
   if ( ! dl_to_ph[id].empty() ) {
     sBuffer *buffer = dl_to_ph[id].front();
+    dl_to_ph[id].pop();
     *pFrame = buffer->pBuffer;
     return buffer->iLength;
   }
@@ -95,6 +97,7 @@ int dl_to_nw_recv( int id, char ** pPacket ) {
   sem_wait(&sem_dl_to_nw);
   if ( ! dl_to_nw[id].empty() ) {
     sBuffer *buffer = dl_to_nw[id].front();
+    dl_to_nw[id].pop();
     *pPacket = buffer->pBuffer;
     return buffer->iLength;
   }
@@ -111,6 +114,7 @@ int nw_to_dl_recv( int id, char ** pPacket ) {
   sem_wait(&sem_nw_to_dl);
   if ( ! nw_to_dl[id].empty() ) {
     sBuffer *buffer = nw_to_dl[id].front();
+    nw_to_dl[id].pop();
     *pPacket = buffer->pBuffer;
     return buffer->iLength;
   }
@@ -127,6 +131,7 @@ int ap_to_nw_recv( int id, char ** pData ) {
   sem_wait(&sem_ap_to_nw);
   if ( ! ap_to_nw[id].empty() ) {
     sBuffer *buffer = ap_to_nw[id].front();
+    ap_to_nw[id].pop();
     *pData = buffer->pBuffer;
     return buffer->iLength;
   }
@@ -143,9 +148,11 @@ int nw_to_ap_recv( int id, char ** pData ) {
   sem_wait(&sem_nw_to_ap);
   if ( ! nw_to_ap[id].empty() ) {
     sBuffer *buffer = nw_to_ap[id].front();
+    nw_to_ap[id].pop();
     *pData = buffer->pBuffer;
     return buffer->iLength;
   }
   return -1;
 }
+
 

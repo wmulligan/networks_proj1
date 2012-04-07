@@ -41,13 +41,14 @@ void *TcpToDlHandler( void *longPointer )
   intptr_t iSocket = (intptr_t) longPointer; // client socket handle
   int iRecvLength; // length of recieved data
   int iSendLength; // length of sent data
-  
+  char *pFrame;
+
   while ( true )
   {
-    char pFrame[300]; // todo: fix size
-    
+    pFrame = (char*)malloc(sizeof(char)*300);; // todo: fix size
+  
     // Block until frame is received from tcp
-    if ( ( iRecvLength = recv( iSocket, pFrame, sizeof( pFrame ), NULL ) ) <= 0 ) {
+    if ( ( iRecvLength = recv( iSocket, pFrame, 300, NULL ) ) <= 0 ) {
       cout << "[Physical] Error receiving frame from tcp." << endl;
       break;
     }

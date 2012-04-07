@@ -42,10 +42,14 @@ void * ApplicationLayer( void * longPointer )
 	  cin.getline(pInput, 256);
 	  
 	  //validate commands entered according to current state of client
-	  if (loggedIn){
+	  if (strcmp(pInput,"exit")==0 || strcmp(pInput,"exit")==0){
+			//exit cmd, terminate 
+			cout << "[Application] Terminating." << endl;
+			exit(1);
+	  }
+	  else if (loggedIn){
 		if (validateInput(pInput)==0){
 			cout<<"[Application] Invalid Command! Try Again.."<<endl;
-			cout<<pInput<<endl;
 			continue;
 		}
 		else if (validateInput(pInput)==2){
@@ -62,11 +66,6 @@ void * ApplicationLayer( void * longPointer )
 			continue;
 		}
 	  }
-	  else if (strcmp(pInput,"exit")==0 || strcmp(pInput,"exit")==0){
-			//exit cmd, terminate 
-			cout << "[Application] Terminating." << endl;
-			exit(1);
-	  }
 	  else {
 		//not logged in
 		if (validateLogin(pInput)==0){
@@ -80,7 +79,7 @@ void * ApplicationLayer( void * longPointer )
 
  
 	  
-	  int iDataLength = strlen(pInput);
+	  int iDataLength = strlen(pInput)+1;
 	  
 	  cout << "[Application] Sending: " << pInput << endl;
 	  
@@ -131,7 +130,7 @@ void queryPicture(intptr_t sockt, char* pInput){
 	int pictureFile;
         char *pictureBuffer;	//buffer for picture data
 
-	  int iDataLength = strlen(pInput);
+	  int iDataLength = strlen(pInput)+1;
 	  
 	  cout << "[Application] Sending: " << pInput << endl;
 	  
@@ -200,7 +199,7 @@ void sendPicture(intptr_t sockt, char* pInput){
 	strcpy(filename, "./");
 	strcat(filename,getFilename(pInput));
 
-	int iDataLength = strlen(pInput);
+	int iDataLength = strlen(pInput)+1;
 
 
 	pictureFile = open(filename, O_RDONLY);
@@ -213,7 +212,7 @@ void sendPicture(intptr_t sockt, char* pInput){
 	fstat(pictureFile, &fileStats);
 	unsigned int fileSize = (unsigned int)fileStats.st_size;
 
-	if (fileSize > 250000){
+	if (fileSize > 1024*1000*2){
 		cout<<"[Application] Error: Filesize greater than 2MB!"<<endl;
 	}
 
@@ -237,7 +236,7 @@ void sendPicture(intptr_t sockt, char* pInput){
 	
 	  // Block until data is sent to network
 	  // Send picture data
-	  if ( ( iSendLength = ap_to_nw_send( sockt, pictureBuffer, fileSize ) ) != iDataLength ) {
+	  if ( ( iSendLength = ap_to_nw_send( sockt, pictureBuffer, fileSize ) ) != fileSize ) {
 	    cout << "[Application] Error sending data to network." << endl;
 	    exit(1);
 	  }
