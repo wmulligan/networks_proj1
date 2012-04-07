@@ -53,7 +53,7 @@ void *TcpToDlHandler( void *longPointer )
       break;
     }
     cout << "[Physical] Received " << iRecvLength << " byte frame from tcp." << endl;
-    cout << "[Physical] Received: " << pFrame << endl;
+    //cout << "[Physical] Received: " << pFrame << endl;
     
     // Block until frame is sent to datalink
     if ( ( iSendLength = ph_to_dl_send( iSocket, pFrame, iRecvLength ) ) != iRecvLength ) {
@@ -79,7 +79,7 @@ void *DlToTcpHandler( void *longPointer )
       break;
     }
     cout << "[Physical] Received " << iRecvLength << " byte frame from datalink." << endl;
-    cout << "[Physical] Received: " << pFrame << endl;
+    //cout << "[Physical] Received: " << pFrame << endl;
     
     // Block until data is sent to tcp
     if ( ( iSendLength = send( iSocket, pFrame, iRecvLength, NULL ) ) != iRecvLength ) {
@@ -88,7 +88,7 @@ void *DlToTcpHandler( void *longPointer )
     }
     cout << "[Physical] Sent " << iSendLength << " byte frame to tcp." << endl;
     
-    //delete(&pFrame);
+    delete(pFrame);
   }
 }
 
