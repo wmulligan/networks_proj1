@@ -41,11 +41,11 @@ void *TcpToDlHandler( void *longPointer )
   int iSocket = (int) longPointer; // client socket handle
   int iRecvLength; // length of recieved data
   int iSendLength; // length of sent data
-  char * pFrame; // todo: fix size
+  char * pFrame; // frame pointer
   
   while ( true )
   {
-    pFrame = (char *) malloc(sizeof(char)*300);
+    pFrame = (char *) malloc(sizeof(char)*300); // todo: fix size
     
     // Block until frame is received from tcp
     if ( ( iRecvLength = recv( iSocket, pFrame, 300, NULL ) ) <= 0 ) {
@@ -69,11 +69,10 @@ void *DlToTcpHandler( void *longPointer )
   int iSocket = (int) longPointer; // client socket handle
   int iRecvLength; // length of received data
   int iSendLength; // length of sent data
+  char * pFrame; // frame pointer
 
   while ( true )
   {
-    char * pFrame; // frame pointer
-    
     // Block until frame is received from datalink
     if ( ( iRecvLength = dl_to_ph_recv( iSocket, &pFrame ) ) == -1 ) {
       cout << "[Physical] Error receiving frame from datalink." << endl;

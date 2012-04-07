@@ -14,8 +14,8 @@
 using namespace std;
 
 struct sBuffer {
-  sBuffer(char* pBuffer, int iLength) : pBuffer(pBuffer), iLength(iLength) { }
-  char* pBuffer;
+  sBuffer(char * pBuffer, int iLength) : pBuffer(pBuffer), iLength(iLength) { }
+  char * pBuffer;
   int iLength;
 };
 
