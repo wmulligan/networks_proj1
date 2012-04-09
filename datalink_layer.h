@@ -43,6 +43,7 @@ struct frameInfo {
 struct transmittedFrame {
   struct timeval transmitTime;
   struct frameInfo *frame;
+  int isValid;
 };
   
 // Syncs the send and receive threads for a single physical layer socket
