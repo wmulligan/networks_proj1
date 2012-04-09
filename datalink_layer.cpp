@@ -61,7 +61,7 @@ void * DataLinkLayer( void * longPointer )
     sev.sigev_signo = SIGUSR1;
     if( -1 == sigaction(SIGUSR1, &sa, NULL)) {
       cout << "Error configuring signals!" << endl;
-      return;
+      return (void *)NULL;
     }
     syncOne = syncInfo;    
   } else if(signalAvail[1] == 1) {
@@ -70,7 +70,7 @@ void * DataLinkLayer( void * longPointer )
     sev.sigev_signo = SIGUSR2;
     if( -1 == sigaction(SIGUSR2, &sa, NULL)) {
       cout << "Error configuring signals!" << endl;
-      return;
+      return (void *)NULL;
     }
     syncTwo = syncInfo;    
   } else {
@@ -79,7 +79,7 @@ void * DataLinkLayer( void * longPointer )
     sev.sigev_signo = SIGALRM;
     if( -1 == sigaction(SIGALRM, &sa, NULL)) {
       cout << "Error configuring signals!" << endl;
-      return;
+      return (void *)NULL;
     }
     syncThree = syncInfo;    
   }
@@ -811,15 +811,15 @@ void handleRetransmission(uint16_t failedFrameSeq, struct linkLayerSync *syncInf
   for(int k = 0; k < syncInfo->recentFramesIndex; k++) {
     if(syncInfo->recentFrames[k].isValid &&
        syncInfo->recentFrames[k].frame->seqNumber > failedFrameSeq) {
-      cout << "[DataLink] Retransmitting sequence number " << syncInfo->recentFrames[j].frame->seqNumber << endl;
+      cout << "[DataLink] Retransmitting sequence number " << syncInfo->recentFrames[k].frame->seqNumber << endl;
       struct timeval curtime;
       gettimeofday(&curtime, NULL);
       
 
       // Critical Section
       pthread_spin_lock(&(syncInfo->lock));
-      syncInfo->recentFrames[j].transmitTime.tv_sec = curtime.tv_sec;
-      syncInfo->recentFrames[j].transmitTime.tv_usec = curtime.tv_usec;
+      syncInfo->recentFrames[k].transmitTime.tv_sec = curtime.tv_sec;
+      syncInfo->recentFrames[k].transmitTime.tv_usec = curtime.tv_usec;
       pthread_spin_unlock(&(syncInfo->lock));
       // End Critical Section	
       transmitFrame(syncInfo->recentFrames[k].frame, syncInfo);

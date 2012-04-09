@@ -28,17 +28,17 @@ void * DataLinkLayer( void * longPointer );
 #undefine VERBOSE_CHECKSUM_DEBUG
 #endif
 // Verbose debug on receive
-#ifdef VERBOSE_RECEIVE_DEBUG
-#undefine VERBOSE_RECEIVE_DEBUG
+#ifndef VERBOSE_RECEIVE_DEBUG
+#define VERBOSE_RECEIVE_DEBUG
 #endif
 // Verbose debug on transmit
-#ifdef VERBOSE_XMIT_DEBUG
-#undefine VERBOSE_XMIT_DEBUG
+#ifndef VERBOSE_XMIT_DEBUG
+#define VERBOSE_XMIT_DEBUG
 #endif
 // Verbose interlayer communication debug
-#ifdef VERBOSE_IPC_DEBUG
-#undefine VERBOSE_IPC_DEBUG
-#endif;
+#ifndef VERBOSE_IPC_DEBUG
+#define VERBOSE_IPC_DEBUG
+#endif
 
 // Frame info structure: Contains all fields in a completed frame, in order.
 struct frameInfo {
