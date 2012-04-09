@@ -11,6 +11,7 @@
 #include <arpa/inet.h>
 #include <signal.h>
 #include <mysql.h>
+#include <string.h>
 
 #include "server_app_layer.h"
 #include "server_func.cpp"
@@ -30,21 +31,24 @@ void * ApplicationLayer( void * longPointer )
   int iSendLength; // length of sent data
   MYSQL* mysqlConn = dbConnect(); //connect to db and save handler
 
+
+  int iDataLength;
+
   cout << "[Application] Initializing..." << endl;
   
   while ( true )
   {
     char * pData;
+   
     
-    
-
     // Block until data is received from network
     if ( ( iRecvLength = nw_to_ap_recv( iSocket, &pData ) ) == -1 ) {
       cout << "[Application] Error receiving data from network." << endl;
-      exit(1);
+      break;
     }
     cout << "[Application] Received " << iRecvLength << " byte data from network." << endl;
     cout << "[Application] Received: " << pData << endl;
+
 	
     char pSendData[400];
     memset(pSendData, 0, sizeof(pSendData));
@@ -69,13 +73,14 @@ void * ApplicationLayer( void * longPointer )
     } 
    
     int iDataLength = strlen(pSendData)+1;
+
     
-    cout << "[Application] Sending: " << pSendData << endl;
+    cout << "[Application] Sending: " << pData << endl;
     
     // Block until data is sent to network
-    if ( ( iSendLength = ap_to_nw_send( iSocket, pSendData, iDataLength ) ) != iDataLength ) {
+    if ( ( iSendLength = ap_to_nw_send( iSocket, pData, iDataLength ) ) != iDataLength ) {
       cout << "[Application] Error sending data to network." << endl;
-      exit(1);
+      break;
     }
     cout << "[Application] Sent " << iSendLength << " byte data to network." << endl;
   }
@@ -83,6 +88,7 @@ void * ApplicationLayer( void * longPointer )
   dbClose(mysqlConn); //close connection to db
 
   cout << "[Application] Terminating." << endl;
+  pthread_exit(NULL);
 }
 
 

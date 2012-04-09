@@ -6,6 +6,7 @@
 #include <sys/socket.h>
 #include <arpa/inet.h>
 #include <signal.h>
+#include <sys/ioctl.h>
 
 #include "queue.h"
 #include "physical_layer.h"
@@ -34,8 +35,6 @@ int main(int argc, char *argv[])
   
   cout << "[Client] Initializing..." << endl;
   
-  initQueue();
-  
   // Initialize Socket
   if ( ( iSocket = socket( AF_INET, SOCK_STREAM, 0 ) ) == -1 ) {
     cout << "[Client] Error initializing socket." << endl;
@@ -53,6 +52,12 @@ int main(int argc, char *argv[])
       exit(1);
   }
   cout << "[Client] Connected to server." << endl;
+  
+  int opt = 1;
+  ioctl(iSocket, FIONBIO, &opt);
+  
+  // Create queues
+  initQueue( iSocket );
 
   // Create Physical Layer Thread
   pthread_create(&iPhysicalThreadId, NULL, &PhysicalLayer, (void *) iSocket);
@@ -69,14 +74,15 @@ int main(int argc, char *argv[])
 
   cout << "[Client] Terminating." << endl;
   close(iSocket);
+  exit(0);
 }
 
 void sighandler(int sig)
 {
   cout << "[Client] Signal Caught. Closing socket connection." << endl;
-  terminateQueue();
+  //terminateQueue();
   close(iSocket);
-  exit(1);
+  //exit(1);
 }
 
 

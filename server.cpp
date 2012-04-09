@@ -31,8 +31,6 @@ int main(int argc, char *argv[])
   
   cout << "[Server] Initializing..." << endl;
   
-  initQueue();
-  
   // Initialize Socket
   if ( ( iSocket = socket( AF_INET, SOCK_STREAM, 0 ) ) == -1 ) {
     cout << "[Server] Error initializing socket." << endl;
@@ -69,6 +67,9 @@ int main(int argc, char *argv[])
       break;
     }
     
+    // Create queues
+    initQueue( iClientSocket );
+    
     // Create Physical Layer Thread
     pthread_create(&iThreadId, NULL, &PhysicalLayer, (void *) iClientSocket);
     pthread_detach(iThreadId);
@@ -81,14 +82,15 @@ int main(int argc, char *argv[])
   }
   
   cout << "[Server] Terminating." << endl;
-  terminateQueue();
   close(iSocket);
+  exit(0);
 }
 
 void sighandler(int sig)
 {
   cout << "[Server] Signal Caught. Closing socket connection." << endl;
   close(iSocket);
+  //exit(1);
 }
 
 

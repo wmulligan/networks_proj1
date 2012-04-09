@@ -5,9 +5,9 @@
  * Will Mulligan
  */
 
-void initQueue( void );
+void initQueue( int id );
 
-void terminateQueue( void );
+void terminateQueue( int id );
 
 int ph_to_dl_send( int id, char * pFrame, int iFrameLength );
 int ph_to_dl_recv( int id, char ** pFrame );

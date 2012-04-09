@@ -11,6 +11,7 @@
 #include <arpa/inet.h>
 #include <signal.h>
 #include <fcntl.h>
+#include <string.h>
 
 #include "client_app_layer.h"
 #include "queue.h"
@@ -33,9 +34,8 @@ void * ApplicationLayer( void * longPointer )
 
   while(1){
 	  
-          char pInput[256]; //input string
-	  char* pData; //data to send
-
+          char *pInput; //input string
+	  pInput = (char *) malloc(sizeof(char) * 256);
 	  cout<<"[Application] >> ";
 	  memset(pInput, 0, sizeof(pInput));
 	  // Read input 
@@ -112,10 +112,12 @@ void * ApplicationLayer( void * longPointer )
 	  else 
 		cout<<"[Application] Command failed: "<<replyMsg<<endl;
 	
-	  
+	delete pInput;  
  }
+ 
   
   cout << "[Application] Terminating." << endl;
+  pthread_exit(NULL);
 }
 
 
