@@ -51,7 +51,6 @@ void * DataLinkLayer( void * longPointer )
   sev.sigev_notify = SIGEV_SIGNAL;
   sev.sigev_value.sival_ptr = (void *)(&syncInfo);
 
-  // TODO: This *needs* to be made safe for concurrent clients!
   sa.sa_flags = SA_SIGINFO;
   sa.sa_sigaction = sigHandler;
 
@@ -547,7 +546,9 @@ uint8_t transmitFrame(struct frameInfo *frame, struct linkLayerSync *syncInfo)
   if((toReturn = dl_to_ph_send(syncInfo->socket, buffer, (FRAMING_SIZE + frame->payloadLength)) ) != (FRAMING_SIZE + frame->payloadLength)) {
     cout << "[DataLink] Error sending frame to physical." << endl;
   }
+#ifdef VERBOSE_XMIT_DEBUG
   cout << "[DataLink] Sent " << toReturn << " byte frame to physical with sequence number " << frame->seqNumber << endl;
+#endif
 
   // Now arm timer
   armTimer(frame->seqNumber, syncInfo);
@@ -904,11 +905,9 @@ void sigHandler(int sig, siginfo_t *si, void *uc)
     syncInfo = syncThree;
   }
 
+#ifdef VERBOSE_RECEIVE_XMIT_DEBUG 
   cout << "[DataLink] Timeout occurred!" << endl;
-
-  if(!uc) {
-    return;
-  }
+#endif
 
   for(int j = syncInfo->recentFramesIndex; j < WINDOW_SIZE + 1; j++) {
     if(syncInfo->recentFrames[j].isValid) {
