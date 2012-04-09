@@ -34,7 +34,7 @@ void armTimer(uint16_t seqNumber, struct linkLayerSync *syncInfo);
 void sigHandler(int sig, siginfo_t *si, void *uc);
 
 // Globals.
-struct linkLayerSync *syncOne, *syncTwo;
+struct linkLayerSync *syncOne, *syncTwo, *syncThree;
 
 void * DataLinkLayer( void * longPointer )
 {
@@ -44,7 +44,8 @@ void * DataLinkLayer( void * longPointer )
   struct linkLayerSync *syncInfo = (struct linkLayerSync *)malloc(sizeof(struct linkLayerSync));
   struct sigaction sa;
   struct sigevent sev;
-  static int isFirstClient = 1;
+  static int signalAvail[3] = {1, 1, 1};
+  int sigNo;
 
   // Populate signal handling structures
   sev.sigev_notify = SIGEV_SIGNAL;
@@ -52,21 +53,34 @@ void * DataLinkLayer( void * longPointer )
 
   sa.sa_flags = SA_SIGINFO;
   sa.sa_sigaction = sigHandler;
-  if(isFirstClient) {
+
+  if(signalAvail[0] == 1) {
+    signalAvail[0] = 0;
+    sigNo = 0;
     sev.sigev_signo = SIGUSR1;
     if( -1 == sigaction(SIGUSR1, &sa, NULL)) {
       cout << "Error configuring signals!" << endl;
-      return;
+      return (void *)NULL;
     }
-    syncOne = syncInfo;
-    isFirstClient--;
-  } else {
+    syncOne = syncInfo;    
+  } else if(signalAvail[1] == 1) {
+    signalAvail[1] = 0;
+    sigNo = 1;
     sev.sigev_signo = SIGUSR2;
     if( -1 == sigaction(SIGUSR2, &sa, NULL)) {
       cout << "Error configuring signals!" << endl;
-      return;
+      return (void *)NULL;
     }
-    syncTwo = syncInfo;
+    syncTwo = syncInfo;    
+  } else {
+    signalAvail[2] = 0;
+    sigNo = 2;
+    sev.sigev_signo = SIGALRM;
+    if( -1 == sigaction(SIGALRM, &sa, NULL)) {
+      cout << "Error configuring signals!" << endl;
+      return (void *)NULL;
+    }
+    syncThree = syncInfo;    
   }
 
   // Populate the syncronization structure assigned to the threads
@@ -97,6 +111,8 @@ void * DataLinkLayer( void * longPointer )
   // Free the sync structure
   //cout << "Freeing, line 86" << endl;
   //free(syncInfo);
+
+  signalAvail[sigNo] = 1;
 
   cout << "[DataLink] Terminating." << endl;
   pthread_exit(NULL);
@@ -136,7 +152,6 @@ void * NwToPhHandler( void * longPointer )
 
 #ifdef VERBOSE_IPC_DEBUG
       printf("[DataLink] Received string %s from Network Layer\n", pPacket);
-
 #endif
     
       if(iRecvLength > MAX_PAYLOAD_SIZE) {
@@ -165,7 +180,9 @@ void * NwToPhHandler( void * longPointer )
 	struct frameInfo *temp = (struct frameInfo *)malloc(sizeof(struct frameInfo));
 	memcpy(temp, frameToSend, sizeof(struct frameInfo));
 
+#ifdef VERBOSE_XMIT_DEBUG
 	cout << "[DataLink] Copied frame with sequence number " << temp->seqNumber << endl;
+#endif
 
 	// Critical Section
 	pthread_spin_lock(&(syncInfo->lock));
@@ -183,7 +200,9 @@ void * NwToPhHandler( void * longPointer )
 	// Checksum and sequence number are managed by transmitFrame
 	transmitFrame(frameToSend, syncInfo);
 
+#ifdef VERBOSE_XMIT_DEBUG
 	cout << "[DataLink] Sending second frame in series!" << endl;
+#endif
 
 	// Now set up the second part of the packet and send it
 	frameToSend->frameType = 0x00;
@@ -200,7 +219,9 @@ void * NwToPhHandler( void * longPointer )
 	temp = (struct frameInfo *)malloc(sizeof(struct frameInfo));
 	memcpy(temp, frameToSend, sizeof(struct frameInfo));
 
+#ifdef VERBOSE_XMIT_DEBUG
 	cout << "[DataLink] Copied frame with sequence number " << temp->seqNumber << endl;
+#endif
 
 	// Critical Section
 	pthread_spin_lock(&(syncInfo->lock));
@@ -239,7 +260,9 @@ void * NwToPhHandler( void * longPointer )
 	struct frameInfo *temp = (struct frameInfo *)malloc(sizeof(struct frameInfo));
 	memcpy(temp, frameToSend, sizeof(struct frameInfo));
 
+#ifdef VERBOSE_XMIT_DEBUG
 	cout << "[DataLink] Copied frame with sequence number " << temp->seqNumber << endl;
+#endif
 
 	// Critical Section
 	pthread_spin_lock(&(syncInfo->lock));
@@ -311,7 +334,9 @@ void * PhToNwHandler( void * longPointer )
     // Check if we received an ACK
     if(receivedFrame->frameType == 1) {
       handleAck(receivedFrame, syncInfo);
+#ifdef VERBOSE_RECEIVE_DEBUG 
       cout << "[DataLink] Processed ACK frame" << endl;
+#endif
       //cout << "Freeing, line 289" << endl;
       free(receivedFrame);
       continue;
@@ -374,7 +399,9 @@ void * PhToNwHandler( void * longPointer )
       for(int i = 0; i < receivedFrame->payloadLength; i++) {
 	stash[i] = receivedFrame->payload[i];
       }
+#ifdef VERBOSE_RECEIVE_DEBUG
       cout << "[DataLink] Stashing frame to send to DLL" << endl;
+#endif
       stashReady = 1;
       //cout << "Freeing, line 353" << endl;
       free(receivedFrame);
@@ -382,7 +409,9 @@ void * PhToNwHandler( void * longPointer )
     } else {
       // Built on the assumption that we receive no more than 2 packets in a row without endOfFrame set.
       if(stashReady == 1) {
+#ifdef VERBOSE_RECEIVE_DEBUG
 	cout << "[DataLink] Unstashing the stash!" << endl;
+#endif
 	stashReady = 0;
 	iPacketLength = receivedFrame->payloadLength + MAX_PAYLOAD_SIZE;
 	pPacket = (char *)malloc(iPacketLength);
@@ -477,7 +506,9 @@ uint8_t transmitFrame(struct frameInfo *frame, struct linkLayerSync *syncInfo)
 
   // Populate the checksum field
   checksum = generateFCS(buffer, frame->payloadLength + FRAMING_SIZE - 2);
+#ifdef VERBOSE_XMIT_DEBUG
   printf("[DataLink] Calculated FCS as %04X\n", checksum);
+#endif
   buffer[(FRAMING_SIZE + frame->payloadLength) - 2] = (uint8_t)(checksum >> 8);
   buffer[(FRAMING_SIZE + frame->payloadLength) - 1] = (uint8_t)(checksum & 0x00FF);
 
@@ -518,7 +549,9 @@ uint8_t transmitFrame(struct frameInfo *frame, struct linkLayerSync *syncInfo)
   if((toReturn = dl_to_ph_send(syncInfo->socket, buffer, (FRAMING_SIZE + frame->payloadLength)) ) != (FRAMING_SIZE + frame->payloadLength)) {
     cout << "[DataLink] Error sending frame to physical." << endl;
   }
+#ifdef VERBOSE_XMIT_DEBUG
   cout << "[DataLink] Sent " << toReturn << " byte frame to physical with sequence number " << frame->seqNumber << endl;
+#endif
 
   // Now arm timer
   armTimer(frame->seqNumber, syncInfo);
@@ -637,10 +670,12 @@ void handleAck(struct frameInfo *frame, struct linkLayerSync *syncInfo)
     // We've gotten an ACK for the frame, so remove it from recently transmitted frames; we don't need to resend
     int id = WINDOW_SIZE + 2;
     for(int i = 0; i < WINDOW_SIZE + 1; i++) {
+#ifdef VERBOSE_XMIT_DEBUG
       cout << "[DataLink] Testing entry " << i << " - valid bit is " << syncInfo->recentFrames[i].isValid << endl;
       if(syncInfo->recentFrames[i].isValid) {
-      cout << "[DataLink] Entry " << i << " has sequence number " << syncInfo->recentFrames[i].frame->seqNumber << endl;
+	cout << "[DataLink] Entry " << i << " has sequence number " << syncInfo->recentFrames[i].frame->seqNumber << endl;
       }
+#endif
       if(syncInfo->recentFrames[i].isValid && syncInfo->recentFrames[i].frame->seqNumber == frame->seqNumber) {
 	id = i;
 	break;
@@ -780,15 +815,15 @@ void handleRetransmission(uint16_t failedFrameSeq, struct linkLayerSync *syncInf
   for(int k = 0; k < syncInfo->recentFramesIndex; k++) {
     if(syncInfo->recentFrames[k].isValid &&
        syncInfo->recentFrames[k].frame->seqNumber > failedFrameSeq) {
-      cout << "[DataLink] Retransmitting sequence number " << syncInfo->recentFrames[j].frame->seqNumber << endl;
+      cout << "[DataLink] Retransmitting sequence number " << syncInfo->recentFrames[k].frame->seqNumber << endl;
       struct timeval curtime;
       gettimeofday(&curtime, NULL);
       
 
       // Critical Section
       pthread_spin_lock(&(syncInfo->lock));
-      syncInfo->recentFrames[j].transmitTime.tv_sec = curtime.tv_sec;
-      syncInfo->recentFrames[j].transmitTime.tv_usec = curtime.tv_usec;
+      syncInfo->recentFrames[k].transmitTime.tv_sec = curtime.tv_sec;
+      syncInfo->recentFrames[k].transmitTime.tv_usec = curtime.tv_usec;
       pthread_spin_unlock(&(syncInfo->lock));
       // End Critical Section	
       transmitFrame(syncInfo->recentFrames[k].frame, syncInfo);
@@ -867,19 +902,15 @@ void sigHandler(int sig, siginfo_t *si, void *uc)
 
   if(sig == SIGUSR1) {
     syncInfo = syncOne;
-  } else {
+  } else if(sig == SIGUSR2) {
     syncInfo = syncTwo;
+  } else {
+    syncInfo = syncThree;
   }
 
+#ifdef VERBOSE_RECEIVE_XMIT_DEBUG 
   cout << "[DataLink] Timeout occurred!" << endl;
-
-  printf("Pointer uc points to %X\n", (unsigned int)uc);
-
-  if(!uc) {
-    return;
-  }
-
-  cout << "May segfault here!" << endl;
+#endif
 
   for(int j = syncInfo->recentFramesIndex; j < WINDOW_SIZE + 1; j++) {
     if(syncInfo->recentFrames[j].isValid) {
@@ -887,7 +918,6 @@ void sigHandler(int sig, siginfo_t *si, void *uc)
       return;
     }
   }
-  cout << "Got through half!" << endl;
   for(int k = 0; k < syncInfo->recentFramesIndex; k++) {
     if(syncInfo->recentFrames[k].isValid) {
       handleRetransmission(syncInfo->recentFrames[k].frame->seqNumber, syncInfo);
