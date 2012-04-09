@@ -17,7 +17,7 @@ void * DataLinkLayer( void * longPointer );
 // Size of an ACK frame, in bytes
 #define ACK_SIZE 5
 // Timeout in microseconds
-#define TIMEOUT_US 100000
+#define TIMEOUT_US 250000
 
 // This is really verbose debug on checksum generation.
 #ifdef VERBOSE_CHECKSUM_DEBUG

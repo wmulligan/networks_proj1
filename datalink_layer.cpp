@@ -546,26 +546,27 @@ void handleAck(struct frameInfo *frame, struct linkLayerSync *syncInfo)
 	break;
       }
     }
-    pthread_spin_unlock(&(syncInfo->lock));
-    // End Critical Section
-
     // Alright. Double check if we have any more frames ready. If we do, arm the timer on the first one we find.
     for(int j = syncInfo->recentFramesIndex; j < WINDOW_SIZE + 1; j++) {
       if(syncInfo->recentFrames[j].frame && syncInfo->recentFrames[j].frame->seqNumber > frame->seqNumber) {
 	armTimer(syncInfo->recentFrames[j].frame->seqNumber, syncInfo);
+	pthread_spin_unlock(&(syncInfo->lock));
 	return;
       }
     }
     for(int k = 0; k < syncInfo->recentFramesIndex; k++) {
       if(syncInfo->recentFrames[k].frame && syncInfo->recentFrames[k].frame->seqNumber > frame->seqNumber) {
 	armTimer(syncInfo->recentFrames[k].frame->seqNumber, syncInfo);
+	pthread_spin_unlock(&(syncInfo->lock));
 	return;
       }
     }
-  }
+    pthread_spin_unlock(&(syncInfo->lock));
+    // End Critical Section
 
-  // Pass a known-bad sequence number to disarm the timer otherwise
-  armTimer(frame->seqNumber, syncInfo);
+    // Pass a known-bad sequence number to disarm the timer otherwise
+    armTimer(frame->seqNumber, syncInfo);
+  }
 }
 
 /**
@@ -618,6 +619,8 @@ void handleRetransmission(uint16_t failedFrameSeq, struct linkLayerSync *syncInf
 {
   int index = WINDOW_SIZE + 2;
 
+  cout << "[DataLink] Retransmitting sequence number " << failedFrameSeq << endl;
+
   for(int i = 0; i < WINDOW_SIZE + 1; i++) {
     if(syncInfo->recentFrames[i].frame && syncInfo->recentFrames[i].frame->seqNumber == failedFrameSeq) {
       index = i;
@@ -660,7 +663,11 @@ void armTimer(uint16_t seqNumber, struct linkLayerSync *syncInfo)
   struct itimerspec value;
   int index = WINDOW_SIZE + 2;
 
+  cout << "[DataLink] Setting timer for sequence number " << seqNumber << endl;
+
   gettimeofday(&current, NULL);
+
+  pthread_spin_lock(&(syncInfo->lock));
 
   for(int i = 0; i < WINDOW_SIZE + 1; i++) {
     if(syncInfo->recentFrames[i].frame && syncInfo->recentFrames[i].frame->seqNumber == seqNumber) {
@@ -676,6 +683,8 @@ void armTimer(uint16_t seqNumber, struct linkLayerSync *syncInfo)
     value.it_interval.tv_sec = 0;
     value.it_interval.tv_nsec = 0;
     timer_settime(syncInfo->timer, 0, &value, NULL);
+    pthread_spin_unlock(&(syncInfo->lock));
+    cout << "[DataLink] Disarmed timer" << endl;
     return;
   }
 
@@ -686,15 +695,28 @@ void armTimer(uint16_t seqNumber, struct linkLayerSync *syncInfo)
 
   // Timeout already expired. Retransmit the frame.
   if(current.tv_usec - syncInfo->recentFrames[index].transmitTime.tv_usec >= TIMEOUT_US) {
+    pthread_spin_unlock(&(syncInfo->lock));
+    value.it_value.tv_sec = 0;
+    value.it_value.tv_nsec = 0;
+    value.it_interval.tv_sec = 0;
+    value.it_interval.tv_nsec = 0;
+    timer_settime(syncInfo->timer, 0, &value, NULL);
+    cout << "[DataLink] Disarmed timer" << endl;
+    cout << "[DataLink] Frame timed out, retransmitting!" << endl;
     handleRetransmission(seqNumber, syncInfo);
     return;
   }
 
   // Alright. Disarm the timer, then rearm with new time.
   value.it_value.tv_sec = 0;
-  value.it_value.tv_nsec = (1000 * TIMEOUT_US) - ((current.tv_usec - syncInfo->recentFrames[index].transmitTime.tv_usec) * 1000);
+  value.it_value.tv_nsec = ((TIMEOUT_US) - (current.tv_usec - syncInfo->recentFrames[index].transmitTime.tv_usec)) * 1000;
   value.it_interval.tv_sec = 0;
   value.it_interval.tv_nsec = 0;
+
+  pthread_spin_unlock(&(syncInfo->lock));
+
+  cout << "[DataLink] Armed timer with time of " << value.it_value.tv_nsec << " seconds for frame " 
+       << syncInfo->recentFrames[index].frame->seqNumber << endl;
 
   timer_settime(syncInfo->timer, 0, &value, NULL);
 }
