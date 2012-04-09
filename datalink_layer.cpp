@@ -30,7 +30,7 @@ uint8_t transmitFrame(struct frameInfo *frame, struct linkLayerSync *syncInfo);
 void handleAck(struct frameInfo *frame, struct linkLayerSync *syncInfo);
 uint8_t disassembleFrame(struct frameInfo *frame, uint8_t *received, int receivedLen);
 void handleRetransmission(uint16_t failedFrameSeq, struct linkLayerSync *syncInfo);
-void armTimer(uint16_t seqNumber, struct linkLayerSync syncInfo);
+void armTimer(uint16_t seqNumber, struct linkLayerSync *syncInfo);
 
 void * DataLinkLayer( void * longPointer )
 {
@@ -640,7 +640,7 @@ void handleRetransmission(uint16_t failedFrameSeq, struct linkLayerSync *syncInf
   transmitFrame(syncInfo->recentFrames[index].frame, syncInfo);
 
   // Retransmit any frames after it
-  for(int j = syncInfo->recentFramesIndex, j < WINDOW_SIZE + 1, j++) {
+  for(int j = syncInfo->recentFramesIndex; j < WINDOW_SIZE + 1; j++) {
     if(syncInfo->recentFrames[j].frame &&
        syncInfo->recentFrames[j].frame->seqNumber > failedFrameSeq) {
       transmitFrame(syncInfo->recentFrames[j].frame, syncInfo);
@@ -654,7 +654,7 @@ void handleRetransmission(uint16_t failedFrameSeq, struct linkLayerSync *syncInf
   }
 }
 
-void armTimer(uint16_t seqNumber, struct linkLayerSync syncInfo)
+void armTimer(uint16_t seqNumber, struct linkLayerSync *syncInfo)
 {
   struct timeval current;
   struct itimerspec value;
@@ -674,7 +674,7 @@ void armTimer(uint16_t seqNumber, struct linkLayerSync syncInfo)
     value.it_value.tv_sec = 0;
     value.it_value.tv_nsec = 0;
     value.it_interval.tv_sec = 0;
-    value.tv_interval.tv_nsec = 0;
+    value.it_interval.tv_nsec = 0;
     timer_settime(syncInfo->timer, 0, &value, NULL);
     return;
   }
@@ -685,16 +685,16 @@ void armTimer(uint16_t seqNumber, struct linkLayerSync syncInfo)
   }
 
   // Timeout already expired. Retransmit the frame.
-  if(current.tv_usec - syncInfo.recentFrames[index].transmitTime.tv_usec >= TIMEOUT_US) {
+  if(current.tv_usec - syncInfo->recentFrames[index].transmitTime.tv_usec >= TIMEOUT_US) {
     handleRetransmission(seqNumber, syncInfo);
     return;
   }
 
   // Alright. Disarm the timer, then rearm with new time.
   value.it_value.tv_sec = 0;
-  value.it_value.tv_nsec = (1000 * TIMEOUT_US) - ((current.tv_usec - syncInfo.recentFrames[index].transmitTime.tv_usec) * 1000);
+  value.it_value.tv_nsec = (1000 * TIMEOUT_US) - ((current.tv_usec - syncInfo->recentFrames[index].transmitTime.tv_usec) * 1000);
   value.it_interval.tv_sec = 0;
-  value.tv_interval.tv_nsec = 0;
+  value.it_interval.tv_nsec = 0;
 
   timer_settime(syncInfo->timer, 0, &value, NULL);
 }
