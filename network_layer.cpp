@@ -1,5 +1,8 @@
-/* network_layer.cpp
- * Will Mulligan
+/**
+ * Handles packets between application and datalink layer
+ *
+ * @file network_layer.cpp
+ * @author Will Mulligan
  */
 #include <iostream>
 #include <pthread.h>

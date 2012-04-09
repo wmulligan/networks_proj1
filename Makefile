@@ -1,10 +1,10 @@
 all: server client
 
 server: server.o physical_layer.o datalink_layer.o network_layer.o server_app_layer.o queue.o
-	g++ -lrt -pthread -o server server.o physical_layer.o datalink_layer.o network_layer.o server_app_layer.o queue.o
+	g++ -pthread -o server server.o physical_layer.o datalink_layer.o network_layer.o -lrt server_app_layer.o queue.o
 
 client: client.o physical_layer.o datalink_layer.o network_layer.o client_app_layer.o queue.o
-	g++ -lrt -pthread -o client client.o physical_layer.o datalink_layer.o network_layer.o client_app_layer.o queue.o
+	g++ -pthread -o client client.o physical_layer.o datalink_layer.o network_layer.o -lrt client_app_layer.o queue.o
 
 server.o: server.cpp
 	g++ -c server.cpp

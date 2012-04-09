@@ -1,3 +1,9 @@
+/**
+ * handles multiple clients
+ *
+ * @file server.cpp
+ * @author Will Mulligan
+ */
 #include <iostream>
 #include <pthread.h>
 #include <stdio.h>
