@@ -34,6 +34,7 @@ void * DataLinkLayer( void * longPointer )
   pthread_join(iPhToNwThreadId, NULL);
   
   cout << "[DataLink] Terminating." << endl;
+  pthread_exit(NULL);
 }
 
 void * NwToPhHandler( void * longPointer )
@@ -49,7 +50,7 @@ void * NwToPhHandler( void * longPointer )
     // Block until packet is received from network
     if ( ( iRecvLength = nw_to_dl_recv( iSocket, &pPacket ) ) == -1 ) {
       cout << "[DataLink] Error receiving packet from network." << endl;
-      break;
+      pthread_exit(NULL);
     }
     cout << "[DataLink] Received " << iRecvLength << " byte packet from network." << endl;
     
@@ -60,7 +61,7 @@ void * NwToPhHandler( void * longPointer )
     // Block until frame is sent to physical
     if ( ( iSendLength = dl_to_ph_send( iSocket, pFrame, iFrameLength ) ) != iFrameLength ) {
       cout << "[DataLink] Error sending frame to physical." << endl;
-      break;
+      pthread_exit(NULL);
     }
     cout << "[DataLink] Sent " << iSendLength << " byte frame to physical." << endl;
   }
@@ -79,7 +80,7 @@ void * PhToNwHandler( void * longPointer )
     // Block until frame is received from physical
     if ( ( iRecvLength = ph_to_dl_recv( iSocket, &pFrame ) ) == -1 ) {
       cout << "[DataLink] Error receiving frame from physical." << endl;
-      break;
+      pthread_exit(NULL);
     }
     cout << "[DataLink] Received " << iRecvLength << " byte frame from physical." << endl;
     
@@ -90,7 +91,7 @@ void * PhToNwHandler( void * longPointer )
     // Block until packet is sent to network
     if ( ( iSendLength = dl_to_nw_send( iSocket, pPacket, iPacketLength ) ) != iPacketLength ) {
       cout << "[DataLink] Error sending packet to network." << endl;
-      break;
+      pthread_exit(NULL);
     }
     cout << "[DataLink] Sent " << iSendLength << " byte packet to network." << endl;
   }

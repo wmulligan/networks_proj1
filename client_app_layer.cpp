@@ -37,14 +37,14 @@ void * ApplicationLayer( void * longPointer )
     // Block until data is sent to network
     if ( ( iSendLength = ap_to_nw_send( iSocket, pData, iDataLength ) ) != iDataLength ) {
       cout << "[Application] Error sending data to network." << endl;
-      exit(1);
+      break;
     }
     cout << "[Application] Sent " << iSendLength << " byte data to network." << endl;
     
     // Block until data is received from network
     if ( ( iRecvLength = nw_to_ap_recv( iSocket, &pData ) ) == -1 ) {
       cout << "[Application] Error receiving data from network." << endl;
-      exit(1);
+      break;
     }
     cout << "[Application] Received " << iRecvLength << " byte data from network." << endl;
     cout << "[Application] Received: " << pData << endl;
@@ -53,5 +53,6 @@ void * ApplicationLayer( void * longPointer )
   }
   
   cout << "[Application] Terminating." << endl;
+  pthread_exit(NULL);
 }
 

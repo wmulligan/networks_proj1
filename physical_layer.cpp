@@ -9,6 +9,7 @@
 #include <sys/socket.h>
 #include <arpa/inet.h>
 #include <signal.h>
+#include <errno.h>
 
 #include "physical_layer.h"
 #include "queue.h"
@@ -34,6 +35,7 @@ void *PhysicalLayer( void *longPointer )
   pthread_join(iDlToTcpThreadId, NULL);
   
   cout << "[Physical] Terminating." << endl;
+  pthread_exit(NULL);
 }
 
 void *TcpToDlHandler( void *longPointer )
@@ -48,17 +50,21 @@ void *TcpToDlHandler( void *longPointer )
     pFrame = (char *) malloc(sizeof(char)*300); // todo: fix size
     
     // Block until frame is received from tcp
-    if ( ( iRecvLength = recv( iSocket, pFrame, 300, NULL ) ) <= 0 ) {
-      cout << "[Physical] Error receiving frame from tcp." << endl;
-      break;
+    while ( ( iRecvLength = recv( iSocket, pFrame, 300, NULL ) ) <= 0 ) {
+      if (errno == EAGAIN) { usleep(1); }
+      else {
+        cout << "[Physical] Error receiving frame from tcp." << endl;
+        pthread_exit(NULL);
+      }
     }
+    
     cout << "[Physical] Received " << iRecvLength << " byte frame from tcp." << endl;
     //cout << "[Physical] Received: " << pFrame << endl;
     
     // Block until frame is sent to datalink
     if ( ( iSendLength = ph_to_dl_send( iSocket, pFrame, iRecvLength ) ) != iRecvLength ) {
       cout << "[Physical] Error sending frame to datalink." << endl;
-      break;
+      pthread_exit(NULL);
     }
     cout << "[Physical] Sent " << iSendLength << " byte frame to datalink." << endl;
   }
@@ -76,7 +82,7 @@ void *DlToTcpHandler( void *longPointer )
     // Block until frame is received from datalink
     if ( ( iRecvLength = dl_to_ph_recv( iSocket, &pFrame ) ) == -1 ) {
       cout << "[Physical] Error receiving frame from datalink." << endl;
-      break;
+      pthread_exit(NULL);
     }
     cout << "[Physical] Received " << iRecvLength << " byte frame from datalink." << endl;
     //cout << "[Physical] Received: " << pFrame << endl;
@@ -84,7 +90,7 @@ void *DlToTcpHandler( void *longPointer )
     // Block until data is sent to tcp
     if ( ( iSendLength = send( iSocket, pFrame, iRecvLength, NULL ) ) != iRecvLength ) {
       cout << "[Physical] Error sending frame to tcp." << endl;
-      break;
+      pthread_exit(NULL);
     }
     cout << "[Physical] Sent " << iSendLength << " byte frame to tcp." << endl;
     

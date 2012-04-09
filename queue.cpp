@@ -47,8 +47,16 @@ void terminateQueue( void )
 {
   sem_post(&sem_ph_to_dl);
   sem_post(&sem_dl_to_ph);
+  sem_post(&sem_dl_to_nw);
+  sem_post(&sem_nw_to_dl);
+  sem_post(&sem_nw_to_ap);
+  sem_post(&sem_ap_to_nw);
   sem_destroy(&sem_ph_to_dl);
   sem_destroy(&sem_dl_to_ph);
+  sem_destroy(&sem_dl_to_nw);
+  sem_destroy(&sem_nw_to_dl);
+  sem_destroy(&sem_nw_to_ap);
+  sem_destroy(&sem_ap_to_nw);
 }
 
 // Physical to DataLink
