@@ -12,6 +12,7 @@
 #include <signal.h>
 #include <fcntl.h>
 #include <string.h>
+#include <sys/time.h>
 
 #include "client_app_layer.h"
 #include "queue.h"
@@ -25,7 +26,8 @@ void * ApplicationLayer( void * longPointer )
   int iRecvLength; // length of recieved data
   int iSendLength; // length of sent data
   int loggedIn = 0; //user authenticated?
-  
+  struct timeval stime, etime; //timer references
+
 
   cout << "[Application] Initializing..." << endl;
  
@@ -87,10 +89,14 @@ void * ApplicationLayer( void * longPointer )
 	  
 	  cout << "[Application] Sending: " << pInput << endl;
 	  
+	  //send time
+          gettimeofday(&stime,NULL);
+	  double t1=stime.tv_sec+(stime.tv_usec/1000000.0);   
+
 	  // Block until data is sent to network
 	  if ( ( iSendLength = ap_to_nw_send( iSocket, pInput, iDataLength ) ) != iDataLength ) {
 	    cout << "[Application] Error sending data to network." << endl;
-	    exit(1);
+	    break;
 	  }
 	  cout << "[Application] Sent " << iSendLength << " byte data to network." << endl;
 	  
@@ -99,11 +105,16 @@ void * ApplicationLayer( void * longPointer )
 	  // Block until data is received from network
 	  if ( ( iRecvLength = nw_to_ap_recv( iSocket, &pReceivedData ) ) == -1 ) {
 	    cout << "[Application] Error receiving data from network." << endl;
-	    exit(1);
+	    break;
 	  }
 	  cout << "[Application] Received " << iRecvLength << " byte data from network." << endl;
 	  cout << "[Application] Received: " << pReceivedData << endl;
-          
+
+	  //receive time
+          gettimeofday(&etime,NULL);
+	  double t2=etime.tv_sec+(etime.tv_usec/1000000.0);   
+
+	  printf("Round Trip Time: %.6lf seconds\n",t2-t1);
 	  char replyMsg[iRecvLength];
 	  memset(replyMsg, 0, iRecvLength);
 	  memcpy(replyMsg, getServerReply(pReceivedData), iRecvLength);
@@ -208,7 +219,7 @@ void sendPicture(intptr_t sockt, char* pInput){
 	strcat(filename,getFilename(pInput));
 
 	int iDataLength = strlen(pInput)+1;
-
+	
 
 	pictureFile = open(filename, O_RDONLY);
 	if (pictureFile == -1) {

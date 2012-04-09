@@ -77,7 +77,7 @@ void * ApplicationLayer( void * longPointer )
     int iDataLength = strlen(pSendData)+1;
 
     
-    cout << "[Application] Sending: " << pData << endl;
+    cout << "[Application] Sending: " << pSendData << endl;
     
     // Block until data is sent to network
     if ( ( iSendLength = ap_to_nw_send( iSocket, pSendData, iDataLength ) ) != iDataLength ) {
