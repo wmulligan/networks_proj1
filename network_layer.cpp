@@ -15,7 +15,7 @@
 #include "network_layer.h"
 #include "queue.h"
 
-#define PACKET_SIZE 250
+#define PACKET_SIZE 256
 #define PACKET_HDR_LENGTH 3
 
 using namespace std;

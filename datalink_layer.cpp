@@ -13,6 +13,8 @@
 #include <arpa/inet.h>
 #include <signal.h>
 #include <time.h>
+#include <string.h>
+#include <sys/time.h>
 
 #include "datalink_layer.h"
 #include "queue.h"
@@ -27,6 +29,7 @@ uint8_t sendAck(uint16_t seqNumber, struct linkLayerSync *syncInfo);
 uint8_t transmitFrame(struct frameInfo *frame, struct linkLayerSync *syncInfo);
 void handleAck(struct frameInfo *frame, struct linkLayerSync *syncInfo);
 uint8_t disassembleFrame(struct frameInfo *frame, uint8_t *received, int receivedLen);
+void handleRetransmission(uint16_t failedFrameSeq, struct linkLayerSync *syncInfo);
 
 void * DataLinkLayer( void * longPointer )
 {
@@ -40,6 +43,10 @@ void * DataLinkLayer( void * longPointer )
   syncInfo->windowSize = WINDOW_SIZE;
   syncInfo->mainSequence = 0;
   syncInfo->ackSequence = 0;
+  syncInfo->recentFramesIndex = 0;
+  for(int i = 0; i < WINDOW_SIZE + 1; i++) {
+    syncInfo->recentFrames[i].frame = 0;
+  }
   // Initialize the spinlock for syncronization
   pthread_spin_init(&(syncInfo->lock), 0);
   
@@ -95,6 +102,11 @@ void * NwToPhHandler( void * longPointer )
 #endif
     
       if(iRecvLength > MAX_PAYLOAD_SIZE) {
+	if(iRecvLength >= 2 * MAX_PAYLOAD_SIZE) {
+	  cout << "[DataLink] Got bad packet from network - too large to send!" << endl;
+	  continue;
+	}
+
 	// Handle packets larger than maximum allowable payload size here
 	frameToSend = (struct frameInfo *)malloc(sizeof(struct frameInfo));
 
@@ -111,6 +123,21 @@ void * NwToPhHandler( void * longPointer )
 	// Checksum and sequence number are managed by transmitFrame
 	transmitFrame(frameToSend, syncInfo);
 
+	struct timeval curtime;
+	gettimeofday(&curtime, NULL);
+
+	struct frameInfo *temp = (struct frameInfo *)malloc(sizeof(struct frameInfo));
+	memcpy(temp, frameToSend, sizeof(struct frameInfo));
+
+	// Critical Section
+	pthread_spin_lock(&(syncInfo->lock));
+	syncInfo->recentFrames[syncInfo->recentFramesIndex].frame = temp;
+	syncInfo->recentFrames[syncInfo->recentFramesIndex].transmitTime.tv_sec = curtime.tv_sec;
+	syncInfo->recentFrames[syncInfo->recentFramesIndex].transmitTime.tv_usec = curtime.tv_usec;
+	syncInfo->recentFramesIndex++;
+	pthread_spin_unlock(&(syncInfo->lock));
+	// End Critical Section	
+
 	// Now set up the second part of the packet and send it
 	frameToSend->frameType = 0x00;
 	frameToSend->endOfPacket = 0x01;
@@ -122,6 +149,20 @@ void * NwToPhHandler( void * longPointer )
 
 	// Checksum and sequence number are managed by transmitFrame
 	transmitFrame(frameToSend, syncInfo);
+
+	gettimeofday(&curtime, NULL);
+
+	temp = (struct frameInfo *)malloc(sizeof(struct frameInfo));
+	memcpy(temp, frameToSend, sizeof(struct frameInfo));
+
+	// Critical Section
+	pthread_spin_lock(&(syncInfo->lock));
+	syncInfo->recentFrames[syncInfo->recentFramesIndex].frame = temp;
+	syncInfo->recentFrames[syncInfo->recentFramesIndex].transmitTime.tv_sec = curtime.tv_sec;
+	syncInfo->recentFrames[syncInfo->recentFramesIndex].transmitTime.tv_usec = curtime.tv_usec;
+	syncInfo->recentFramesIndex++;
+	pthread_spin_unlock(&(syncInfo->lock));
+	// End Critical Section	
 
 	free(frameToSend);
       } else {
@@ -138,6 +179,21 @@ void * NwToPhHandler( void * longPointer )
 
 	// Checksum and sequence number are managed by transmitFrame
 	transmitFrame(frameToSend, syncInfo);
+
+	struct timeval curtime;
+	gettimeofday(&curtime, NULL);
+
+	struct frameInfo *temp = (struct frameInfo *)malloc(sizeof(struct frameInfo));
+	memcpy(temp, frameToSend, sizeof(struct frameInfo));
+
+	// Critical Section
+	pthread_spin_lock(&(syncInfo->lock));
+	syncInfo->recentFrames[syncInfo->recentFramesIndex].frame = temp;
+	syncInfo->recentFrames[syncInfo->recentFramesIndex].transmitTime.tv_sec = curtime.tv_sec;
+	syncInfo->recentFrames[syncInfo->recentFramesIndex].transmitTime.tv_usec = curtime.tv_usec;
+	syncInfo->recentFramesIndex++;
+	pthread_spin_unlock(&(syncInfo->lock));
+	// End Critical Section	
 
 	free(frameToSend);
       }
@@ -211,8 +267,15 @@ void * PhToNwHandler( void * longPointer )
 
     // Check sequence number. See if it's what we were expecting.
     if(receivedFrame->seqNumber != syncInfo->mainSequence) {
-      cout << "[DataLink] Received out of sequence frame (expected sequence number "
-	   << syncInfo->mainSequence << ", received " << receivedFrame->seqNumber << ")." << endl;
+      if(receivedFrame->seqNumber >= syncInfo->mainSequence - (WINDOW_SIZE + 1)) {
+	cout << "Acking out of order frame with sequence number " << receivedFrame->seqNumber << endl;
+	if(sendAck(receivedFrame->seqNumber, syncInfo) != ACK_SIZE) {
+	  cout << "[DataLink] Sending ack for sequence number " << receivedFrame->seqNumber << " failed!" << endl;
+	}
+      } else {
+	cout << "[DataLink] Received out of sequence frame (expected sequence number "
+	     << syncInfo->mainSequence << ", received " << receivedFrame->seqNumber << ")." << endl;
+      }
       free(receivedFrame);
       continue;
     } else {
@@ -249,6 +312,7 @@ void * PhToNwHandler( void * longPointer )
     } else {
       // Built on the assumption that we receive no more than 2 packets in a row without endOfFrame set.
       if(stashReady == 1) {
+	cout << "[DataLink] Unstashing the stash!" << endl;
 	stashReady = 0;
 	iPacketLength = receivedFrame->payloadLength + MAX_PAYLOAD_SIZE;
 	pPacket = (char *)malloc(iPacketLength);
@@ -468,6 +532,15 @@ void handleAck(struct frameInfo *frame, struct linkLayerSync *syncInfo)
     pthread_spin_lock(&(syncInfo->lock));
     syncInfo->ackSequence++; // Increment next frame we expect an ACK for
     syncInfo->windowSize++; // Increment available window slots
+
+    // We've gotten an ACK for the frame, so remove it from recently transmitted frames; we don't need to resend
+    for(int i = 0; i < WINDOW_SIZE + 1; i++) {
+      if(syncInfo->recentFrames[i].frame && syncInfo->recentFrames[i].frame->seqNumber == frame->seqNumber) {
+	free(syncInfo->recentFrames[i].frame);
+	syncInfo->recentFrames[i].frame = NULL;
+	break;
+      }
+    }
     pthread_spin_unlock(&(syncInfo->lock));
     // End Critical Section    
   }
@@ -517,4 +590,44 @@ uint16_t generateFCS(uint8_t *frame, uint8_t length)
   }
 
   return checksum;
+}
+
+void handleRetransmission(uint16_t failedFrameSeq, struct linkLayerSync *syncInfo)
+{
+  int index = WINDOW_SIZE + 2;
+
+  for(int i = 0; i < WINDOW_SIZE + 1; i++) {
+    if(syncInfo->recentFrames[i].frame && syncInfo->recentFrames[i].frame->seqNumber == failedFrameSeq) {
+      index = i;
+      break;
+    }
+  }
+
+  if(index == WINDOW_SIZE + 2) {
+    return;
+  }
+
+  // Reset sequence numbers for retransmission
+  // Critical Section
+  pthread_spin_lock(&(syncInfo->lock));
+  syncInfo->mainSequence = failedFrameSeq;
+  pthread_spin_unlock(&(syncInfo->lock));
+  // End Critical Section
+
+  // Retransmit the failed frame
+  transmitFrame(syncInfo->recentFrames[index].frame, syncInfo);
+
+  // Retransmit any frames after it
+  for(int j = syncInfo->recentFramesIndex, j < WINDOW_SIZE + 1, j++) {
+    if(syncInfo->recentFrames[j].frame &&
+       syncInfo->recentFrames[j].frame->seqNumber > failedFrameSeq) {
+      transmitFrame(syncInfo->recentFrames[j].frame, syncInfo);
+    }
+  }
+  for(int k = 0; k < syncInfo->recentFramesIndex; k++) {
+    if(syncInfo->recentFrames[k].frame &&
+       syncInfo->recentFrames[k].frame->seqNumber > failedFrameSeq) {
+      transmitFrame(syncInfo->recentFrames[k].frame, syncInfo);
+    }
+  }
 }

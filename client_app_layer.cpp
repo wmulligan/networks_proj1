@@ -115,6 +115,7 @@ void * ApplicationLayer( void * longPointer )
 	delete pInput;  
  }
  
+
   
   cout << "[Application] Terminating." << endl;
   pthread_exit(NULL);
