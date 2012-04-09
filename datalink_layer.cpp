@@ -618,7 +618,7 @@ void handleRetransmission(uint16_t failedFrameSeq, struct linkLayerSync *syncInf
   transmitFrame(syncInfo->recentFrames[index].frame, syncInfo);
 
   // Retransmit any frames after it
-  for(int j = syncInfo->recentFramesIndex, j < WINDOW_SIZE + 1, j++) {
+  for(int j = syncInfo->recentFramesIndex; j < WINDOW_SIZE + 1; j++) {
     if(syncInfo->recentFrames[j].frame &&
        syncInfo->recentFrames[j].frame->seqNumber > failedFrameSeq) {
       transmitFrame(syncInfo->recentFrames[j].frame, syncInfo);
