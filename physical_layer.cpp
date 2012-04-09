@@ -73,6 +73,7 @@ void *TcpToDlHandler( void *longPointer )
       pFrame = (char *) malloc(sizeof(char)*iSlotLength);
       memcpy( pFrame, pSlot+1, iSlotLength );
       iRecvLength -= iSlotLength+1;
+      pSlot += iSlotLength+1;
       
       // Block until frame is sent to datalink
       if ( ( iSendLength = ph_to_dl_send( iSocket, pFrame, iSlotLength ) ) != iSlotLength ) {
