@@ -50,7 +50,8 @@ void * ApplicationLayer( void * longPointer )
     cout << "[Application] Received: " << pData << endl;
 
 	
-    char pSendData[400];
+    char *pSendData;
+    pSendData = (char*)malloc(400*sizeof(char));
     memset(pSendData, 0, sizeof(pSendData));
     if (userType==0){
 
