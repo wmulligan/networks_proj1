@@ -10,9 +10,13 @@
 #include <arpa/inet.h>
 #include <signal.h>
 #include <errno.h>
+#include <string.h>
 
 #include "physical_layer.h"
 #include "queue.h"
+
+#define SLOT_SIZE 200
+#define SLOT_HDR_LENGTH 1
 
 using namespace std;
 
@@ -44,13 +48,15 @@ void *TcpToDlHandler( void *longPointer )
   int iRecvLength; // length of recieved data
   int iSendLength; // length of sent data
   char * pFrame; // frame pointer
+  char * pSlot;
+  int iSlotLength;
   
   while ( true )
   {
-    pFrame = (char *) malloc(sizeof(char)*300); // todo: fix size
+    pSlot = (char *) malloc(sizeof(char)*(SLOT_SIZE+SLOT_HDR_LENGTH));
     
     // Block until frame is received from tcp
-    while ( ( iRecvLength = recv( iSocket, pFrame, 300, NULL ) ) <= 0 ) {
+    while ( ( iRecvLength = recv( iSocket, pSlot, SLOT_SIZE+SLOT_HDR_LENGTH, NULL ) ) <= 0 ) {
       if (errno == EAGAIN) { usleep(1); }
       else {
         cout << "[Physical] Error receiving frame from tcp." << endl;
@@ -58,12 +64,15 @@ void *TcpToDlHandler( void *longPointer )
         pthread_exit(NULL);
       }
     }
+    cout << "[Physical] Received " << iRecvLength << " bytes from tcp." << endl;
     
-    cout << "[Physical] Received " << iRecvLength << " byte frame from tcp." << endl;
-    //cout << "[Physical] Received: " << pFrame << endl;
+    iSlotLength = pSlot[0];
+    pFrame = (char *) malloc(sizeof(char)*iSlotLength);
+    memcpy( pFrame, pSlot+1, iSlotLength );
+    delete pSlot;
     
     // Block until frame is sent to datalink
-    if ( ( iSendLength = ph_to_dl_send( iSocket, pFrame, iRecvLength ) ) != iRecvLength ) {
+    if ( ( iSendLength = ph_to_dl_send( iSocket, pFrame, iSlotLength ) ) != iSlotLength ) {
       cout << "[Physical] Error sending frame to datalink." << endl;
       pthread_exit(NULL);
     }
@@ -77,6 +86,8 @@ void *DlToTcpHandler( void *longPointer )
   int iRecvLength; // length of received data
   int iSendLength; // length of sent data
   char * pFrame; // frame pointer
+  char * pSlot;
+  int iSlotLength;
 
   while ( true )
   {
@@ -86,16 +97,21 @@ void *DlToTcpHandler( void *longPointer )
       pthread_exit(NULL);
     }
     cout << "[Physical] Received " << iRecvLength << " byte frame from datalink." << endl;
-    //cout << "[Physical] Received: " << pFrame << endl;
+    
+    pSlot = (char *) malloc(sizeof(char)*(SLOT_SIZE+SLOT_HDR_LENGTH));
+    pSlot[0] = (char) iRecvLength;
+    memcpy( pSlot+1, pFrame, iRecvLength );
+    iSlotLength = iRecvLength + SLOT_HDR_LENGTH;
+    delete pFrame;
     
     // Block until data is sent to tcp
-    if ( ( iSendLength = send( iSocket, pFrame, iRecvLength, NULL ) ) != iRecvLength ) {
+    if ( ( iSendLength = send( iSocket, (char *) pSlot, iSlotLength, NULL ) ) != iSlotLength ) {
       cout << "[Physical] Error sending frame to tcp." << endl;
       pthread_exit(NULL);
     }
-    cout << "[Physical] Sent " << iSendLength << " byte frame to tcp." << endl;
+    cout << "[Physical] Sent " << iSendLength << " bytes to tcp." << endl;
     
-    delete(pFrame);
+    delete pSlot;
   }
 }
 
