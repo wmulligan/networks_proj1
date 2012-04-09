@@ -28,8 +28,8 @@ void * ApplicationLayer( void * longPointer )
   
   while ( true )
   {
-    pData = (char *) malloc(sizeof(char) * 256);
-    cin.getline(pData, 256);
+    pData = (char *) malloc(sizeof(char) * 500);
+    cin.getline(pData, 500);
     iDataLength = strlen(pData) + 1;
 
     cout << "[Application] Sending: " << pData << endl;
