@@ -66,17 +66,20 @@ void *TcpToDlHandler( void *longPointer )
     }
     cout << "[Physical] Received " << iRecvLength << " bytes from tcp." << endl;
     
-    iSlotLength = pSlot[0];
-    pFrame = (char *) malloc(sizeof(char)*iSlotLength);
-    memcpy( pFrame, pSlot+1, iSlotLength );
-    delete pSlot;
-    
-    // Block until frame is sent to datalink
-    if ( ( iSendLength = ph_to_dl_send( iSocket, pFrame, iSlotLength ) ) != iSlotLength ) {
-      cout << "[Physical] Error sending frame to datalink." << endl;
-      pthread_exit(NULL);
+    while ( iRecvLength > 0 ) {
+      iSlotLength = pSlot[0];
+      pFrame = (char *) malloc(sizeof(char)*iSlotLength);
+      memcpy( pFrame, pSlot+1, iSlotLength );
+      iRecvLength -= iSlotLength+1;
+      
+      // Block until frame is sent to datalink
+      if ( ( iSendLength = ph_to_dl_send( iSocket, pFrame, iSlotLength ) ) != iSlotLength ) {
+        cout << "[Physical] Error sending frame to datalink." << endl;
+        pthread_exit(NULL);
+      }
+      cout << "[Physical] Sent " << iSendLength << " byte frame to datalink." << endl;
     }
-    cout << "[Physical] Sent " << iSendLength << " byte frame to datalink." << endl;
+    delete pSlot;
   }
 }
 
