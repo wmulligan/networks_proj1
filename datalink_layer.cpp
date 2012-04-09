@@ -29,6 +29,7 @@ uint8_t sendAck(uint16_t seqNumber, struct linkLayerSync *syncInfo);
 uint8_t transmitFrame(struct frameInfo *frame, struct linkLayerSync *syncInfo);
 void handleAck(struct frameInfo *frame, struct linkLayerSync *syncInfo);
 uint8_t disassembleFrame(struct frameInfo *frame, uint8_t *received, int receivedLen);
+void handleRetransmission(uint16_t failedFrameSeq, struct linkLayerSync *syncInfo);
 
 void * DataLinkLayer( void * longPointer )
 {
@@ -586,4 +587,44 @@ uint16_t generateFCS(uint8_t *frame, uint8_t length)
   }
 
   return checksum;
+}
+
+void handleRetransmission(uint16_t failedFrameSeq, struct linkLayerSync *syncInfo)
+{
+  int index = WINDOW_SIZE + 2;
+
+  for(int i = 0; i < WINDOW_SIZE + 1; i++) {
+    if(syncInfo->recentFrames[i].frame && syncInfo->recentFrames[i].frame->seqNumber == failedFrameSeq) {
+      index = i;
+      break;
+    }
+  }
+
+  if(index == WINDOW_SIZE + 2) {
+    return;
+  }
+
+  // Reset sequence numbers for retransmission
+  // Critical Section
+  pthread_spin_lock(&(syncInfo->lock));
+  syncInfo->mainSequence = failedFrameSeq;
+  pthread_spin_unlock(&(syncInfo->lock));
+  // End Critical Section
+
+  // Retransmit the failed frame
+  transmitFrame(syncInfo->recentFrames[index].frame, syncInfo);
+
+  // Retransmit any frames after it
+  for(int j = syncInfo->recentFramesIndex, j < WINDOW_SIZE + 1, j++) {
+    if(syncInfo->recentFrames[j].frame &&
+       syncInfo->recentFrames[j].frame->seqNumber > failedFrameSeq) {
+      transmitFrame(syncInfo->recentFrames[j].frame, syncInfo);
+    }
+  }
+  for(int k = 0; k < syncInfo->recentFramesIndex; k++) {
+    if(syncInfo->recentFrames[k].frame &&
+       syncInfo->recentFrames[k].frame->seqNumber > failedFrameSeq) {
+      transmitFrame(syncInfo->recentFrames[k].frame, syncInfo);
+    }
+  }
 }
