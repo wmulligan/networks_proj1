@@ -242,7 +242,10 @@ void * PhToNwHandler( void * longPointer )
       for(int i = 0; i < receivedFrame->payloadLength; i++) {
 	stash[i] = receivedFrame->payload[i];
       }
+      cout << "[DataLink] Stashing frame to send to DLL" << endl;
       stashReady = 1;
+      free(receivedFrame);
+      continue;
     } else {
       // Built on the assumption that we receive no more than 2 packets in a row without endOfFrame set.
       if(stashReady == 1) {
