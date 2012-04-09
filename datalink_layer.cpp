@@ -549,15 +549,15 @@ void handleAck(struct frameInfo *frame, struct linkLayerSync *syncInfo)
     // Alright. Double check if we have any more frames ready. If we do, arm the timer on the first one we find.
     for(int j = syncInfo->recentFramesIndex; j < WINDOW_SIZE + 1; j++) {
       if(syncInfo->recentFrames[j].frame && syncInfo->recentFrames[j].frame->seqNumber > frame->seqNumber) {
-	armTimer(syncInfo->recentFrames[j].frame->seqNumber, syncInfo);
 	pthread_spin_unlock(&(syncInfo->lock));
+	armTimer(syncInfo->recentFrames[j].frame->seqNumber, syncInfo);
 	return;
       }
     }
     for(int k = 0; k < syncInfo->recentFramesIndex; k++) {
       if(syncInfo->recentFrames[k].frame && syncInfo->recentFrames[k].frame->seqNumber > frame->seqNumber) {
-	armTimer(syncInfo->recentFrames[k].frame->seqNumber, syncInfo);
 	pthread_spin_unlock(&(syncInfo->lock));
+	armTimer(syncInfo->recentFrames[k].frame->seqNumber, syncInfo);
 	return;
       }
     }
