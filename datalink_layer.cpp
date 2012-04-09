@@ -208,8 +208,14 @@ void * PhToNwHandler( void * longPointer )
 
     // Check sequence number. See if it's what we were expecting.
     if(receivedFrame->seqNumber != syncInfo->mainSequence) {
-      cout << "[DataLink] Received out of sequence frame (expected sequence number "
-	   << syncInfo->mainSequence << ", received " << receivedFrame->seqNumber << ")." << endl;
+      if(receivedFrame->seqNumber >= syncInfo->mainSequence - (WINDOW_SIZE + 1)) {
+	cout << "Acking out of order frame with sequence number " << receivedFrame->seqNumber << endl;
+	if(sendAck(receivedFrame->seqNumber, syncInfo) != ACK_SIZE) {
+	  cout << "[DataLink] Sending ack for sequence number " << receivedFrame->seqNumber << " failed!" << endl;
+      } else {
+	cout << "[DataLink] Received out of sequence frame (expected sequence number "
+	     << syncInfo->mainSequence << ", received " << receivedFrame->seqNumber << ")." << endl;
+      }
       free(receivedFrame);
       continue;
     } else {
