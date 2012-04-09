@@ -94,6 +94,11 @@ void * NwToPhHandler( void * longPointer )
 #endif
     
       if(iRecvLength > MAX_PAYLOAD_SIZE) {
+	if(iRecvLength >= 2 * MAX_PAYLOAD_SIZE) {
+	  cout << "[DataLink] Got bad packet from network - too large to send!" << endl;
+	  continue;
+	}
+
 	// Handle packets larger than maximum allowable payload size here
 	frameToSend = (struct frameInfo *)malloc(sizeof(struct frameInfo));
 
@@ -212,6 +217,7 @@ void * PhToNwHandler( void * longPointer )
 	cout << "Acking out of order frame with sequence number " << receivedFrame->seqNumber << endl;
 	if(sendAck(receivedFrame->seqNumber, syncInfo) != ACK_SIZE) {
 	  cout << "[DataLink] Sending ack for sequence number " << receivedFrame->seqNumber << " failed!" << endl;
+	}
       } else {
 	cout << "[DataLink] Received out of sequence frame (expected sequence number "
 	     << syncInfo->mainSequence << ", received " << receivedFrame->seqNumber << ")." << endl;
@@ -252,6 +258,7 @@ void * PhToNwHandler( void * longPointer )
     } else {
       // Built on the assumption that we receive no more than 2 packets in a row without endOfFrame set.
       if(stashReady == 1) {
+	cout << "[DataLink] Unstashing the stash!" << endl;
 	stashReady = 0;
 	iPacketLength = receivedFrame->payloadLength + MAX_PAYLOAD_SIZE;
 	pPacket = (char *)malloc(iPacketLength);
