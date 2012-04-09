@@ -16,6 +16,8 @@ void * DataLinkLayer( void * longPointer );
 #define FRAMING_SIZE 6
 // Size of an ACK frame, in bytes
 #define ACK_SIZE 5
+// Timeout in microseconds
+#define TIMEOUT_US 100000
 
 // This is really verbose debug on checksum generation.
 #ifdef VERBOSE_CHECKSUM_DEBUG
@@ -45,6 +47,7 @@ struct transmittedFrame {
   
 // Syncs the send and receive threads for a single physical layer socket
 struct linkLayerSync {
+  timer_t timer;
   int socket;
   uint8_t windowSize;
   uint16_t mainSequence;
