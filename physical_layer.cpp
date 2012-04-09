@@ -1,5 +1,8 @@
-/* physical_layer.cpp
- * Will Mulligan
+/**
+ * Sends and recvs bytes over TCP
+ *
+ * @file physical_layer.cpp
+ * @author Will Mulligan
  */
 #include <iostream>
 #include <pthread.h>
@@ -55,10 +58,10 @@ void *TcpToDlHandler( void *longPointer )
   
   while ( true )
   {
-    pSlot = (char *) malloc(sizeof(char)*(SLOT_SIZE+SLOT_HDR_LENGTH));
+    pSlot = (char *) malloc(sizeof(char)*1024);
     
     // Block until frame is received from tcp
-    while ( ( iRecvLength = recv( iSocket, pSlot, SLOT_SIZE+SLOT_HDR_LENGTH, NULL ) ) <= 0 ) {
+    while ( ( iRecvLength = recv( iSocket, pSlot, 1024, NULL ) ) <= 0 ) {
       if (errno == EAGAIN) { usleep(1); }
       else {
         cout << "[Physical] Error receiving frame from tcp." << endl;

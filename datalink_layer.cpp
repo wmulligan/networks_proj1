@@ -30,6 +30,7 @@ uint8_t transmitFrame(struct frameInfo *frame, struct linkLayerSync *syncInfo);
 void handleAck(struct frameInfo *frame, struct linkLayerSync *syncInfo);
 uint8_t disassembleFrame(struct frameInfo *frame, uint8_t *received, int receivedLen);
 void handleRetransmission(uint16_t failedFrameSeq, struct linkLayerSync *syncInfo);
+void armTimer(uint16_t seqNumber, struct linkLayerSync *syncInfo);
 
 void * DataLinkLayer( void * longPointer )
 {
@@ -45,10 +46,13 @@ void * DataLinkLayer( void * longPointer )
   syncInfo->ackSequence = 0;
   syncInfo->recentFramesIndex = 0;
   for(int i = 0; i < WINDOW_SIZE + 1; i++) {
-    syncInfo->recentFrames[i].frame = 0;
+    syncInfo->recentFrames[i].isValid = 0;
   }
   // Initialize the spinlock for syncronization
   pthread_spin_init(&(syncInfo->lock), 0);
+
+  // Create a timer for timeouts
+  timer_create(CLOCK_REALTIME, NULL, &(syncInfo->timer));
   
   cout << "[DataLink] Initializing..." << endl;
   
@@ -99,6 +103,7 @@ void * NwToPhHandler( void * longPointer )
 
 #ifdef VERBOSE_IPC_DEBUG
       printf("[DataLink] Received string %s from Network Layer\n", pPacket);
+
 #endif
     
       if(iRecvLength > MAX_PAYLOAD_SIZE) {
@@ -114,14 +119,12 @@ void * NwToPhHandler( void * longPointer )
 	frameToSend->frameType = 0x00;
 	frameToSend->endOfPacket = 0x00;
 	frameToSend->payloadLength = MAX_PAYLOAD_SIZE;      
+	frameToSend->seqNumber = syncInfo->mainSequence;
 
 	// Copy in the payload
 	for(int i = 0; i < MAX_PAYLOAD_SIZE; i++) {
 	  frameToSend->payload[i] = pPacket[i];
 	}
-
-	// Checksum and sequence number are managed by transmitFrame
-	transmitFrame(frameToSend, syncInfo);
 
 	struct timeval curtime;
 	gettimeofday(&curtime, NULL);
@@ -129,40 +132,50 @@ void * NwToPhHandler( void * longPointer )
 	struct frameInfo *temp = (struct frameInfo *)malloc(sizeof(struct frameInfo));
 	memcpy(temp, frameToSend, sizeof(struct frameInfo));
 
+	cout << "[DataLink] Copied frame with sequence number " << temp->seqNumber << endl;
+
 	// Critical Section
 	pthread_spin_lock(&(syncInfo->lock));
 	syncInfo->recentFrames[syncInfo->recentFramesIndex].frame = temp;
 	syncInfo->recentFrames[syncInfo->recentFramesIndex].transmitTime.tv_sec = curtime.tv_sec;
 	syncInfo->recentFrames[syncInfo->recentFramesIndex].transmitTime.tv_usec = curtime.tv_usec;
+	syncInfo->recentFrames[syncInfo->recentFramesIndex].isValid = 1;
 	syncInfo->recentFramesIndex++;
 	pthread_spin_unlock(&(syncInfo->lock));
 	// End Critical Section	
+
+	// Checksum and sequence number are managed by transmitFrame
+	transmitFrame(frameToSend, syncInfo);
 
 	// Now set up the second part of the packet and send it
 	frameToSend->frameType = 0x00;
 	frameToSend->endOfPacket = 0x01;
 	frameToSend->payloadLength = iRecvLength - MAX_PAYLOAD_SIZE;      
+	frameToSend->seqNumber = syncInfo->mainSequence;
 
 	for(int i = MAX_PAYLOAD_SIZE; i < iRecvLength; i++) {
 	  frameToSend->payload[i - MAX_PAYLOAD_SIZE] = pPacket[i];
 	}
-
-	// Checksum and sequence number are managed by transmitFrame
-	transmitFrame(frameToSend, syncInfo);
 
 	gettimeofday(&curtime, NULL);
 
 	temp = (struct frameInfo *)malloc(sizeof(struct frameInfo));
 	memcpy(temp, frameToSend, sizeof(struct frameInfo));
 
+	cout << "[DataLink] Copied frame with sequence number " << temp->seqNumber << endl;
+
 	// Critical Section
 	pthread_spin_lock(&(syncInfo->lock));
 	syncInfo->recentFrames[syncInfo->recentFramesIndex].frame = temp;
 	syncInfo->recentFrames[syncInfo->recentFramesIndex].transmitTime.tv_sec = curtime.tv_sec;
 	syncInfo->recentFrames[syncInfo->recentFramesIndex].transmitTime.tv_usec = curtime.tv_usec;
+	syncInfo->recentFrames[syncInfo->recentFramesIndex].isValid = 1;
 	syncInfo->recentFramesIndex++;
 	pthread_spin_unlock(&(syncInfo->lock));
 	// End Critical Section	
+
+	// Checksum and sequence number are managed by transmitFrame
+	transmitFrame(frameToSend, syncInfo);
 
 	free(frameToSend);
       } else {
@@ -171,14 +184,12 @@ void * NwToPhHandler( void * longPointer )
 	frameToSend->frameType = 0x00;
 	frameToSend->endOfPacket = 0x01;
 	frameToSend->payloadLength = iRecvLength;
+	frameToSend->seqNumber = syncInfo->mainSequence;
       
 	// Copy in the payload
 	for(int i = 0; i < iRecvLength; i++) {
 	  frameToSend->payload[i] = pPacket[i];
 	}
-
-	// Checksum and sequence number are managed by transmitFrame
-	transmitFrame(frameToSend, syncInfo);
 
 	struct timeval curtime;
 	gettimeofday(&curtime, NULL);
@@ -186,14 +197,20 @@ void * NwToPhHandler( void * longPointer )
 	struct frameInfo *temp = (struct frameInfo *)malloc(sizeof(struct frameInfo));
 	memcpy(temp, frameToSend, sizeof(struct frameInfo));
 
+	cout << "[DataLink] Copied frame with sequence number " << temp->seqNumber << endl;
+
 	// Critical Section
 	pthread_spin_lock(&(syncInfo->lock));
 	syncInfo->recentFrames[syncInfo->recentFramesIndex].frame = temp;
 	syncInfo->recentFrames[syncInfo->recentFramesIndex].transmitTime.tv_sec = curtime.tv_sec;
 	syncInfo->recentFrames[syncInfo->recentFramesIndex].transmitTime.tv_usec = curtime.tv_usec;
+	syncInfo->recentFrames[syncInfo->recentFramesIndex].isValid = 1;
 	syncInfo->recentFramesIndex++;
 	pthread_spin_unlock(&(syncInfo->lock));
 	// End Critical Section	
+
+	// Checksum and sequence number are managed by transmitFrame
+	transmitFrame(frameToSend, syncInfo);
 
 	free(frameToSend);
       }
@@ -436,6 +453,9 @@ uint8_t transmitFrame(struct frameInfo *frame, struct linkLayerSync *syncInfo)
   }
   cout << "[DataLink] Sent " << toReturn << " byte frame to physical with sequence number " << frame->seqNumber << endl;
 
+  // Now arm timer
+  armTimer(frame->seqNumber, syncInfo);
+
   //free(buffer);
 
   return toReturn;
@@ -534,15 +554,44 @@ void handleAck(struct frameInfo *frame, struct linkLayerSync *syncInfo)
     syncInfo->windowSize++; // Increment available window slots
 
     // We've gotten an ACK for the frame, so remove it from recently transmitted frames; we don't need to resend
+    int id = WINDOW_SIZE + 2;
     for(int i = 0; i < WINDOW_SIZE + 1; i++) {
-      if(syncInfo->recentFrames[i].frame && syncInfo->recentFrames[i].frame->seqNumber == frame->seqNumber) {
-	free(syncInfo->recentFrames[i].frame);
-	syncInfo->recentFrames[i].frame = NULL;
+      //cout << "[DataLink] Testing entry " << i << " - valid bit is " << syncInfo->recentFrames[i].isValid << endl;
+      //if(syncInfo->recentFrames[i].isValid) {
+      //cout << "[DataLink] Entry " << i << " has sequence number " << syncInfo->recentFrames[i].frame->seqNumber << endl;
+      //}
+      if(syncInfo->recentFrames[i].isValid && syncInfo->recentFrames[i].frame->seqNumber == frame->seqNumber) {
+	id = i;
 	break;
       }
     }
+    if(id == WINDOW_SIZE + 2) {
+      pthread_spin_unlock(&(syncInfo->lock));
+      cout << "[DataLink] Could not find recent frames entry to free!" << endl;
+      return;
+    }
+    free(syncInfo->recentFrames[id].frame);
+    syncInfo->recentFrames[id].isValid = 0;
+    // Alright. Double check if we have any more frames ready. If we do, arm the timer on the first one we find.
+    for(int j = syncInfo->recentFramesIndex; j < WINDOW_SIZE + 1; j++) {
+      if(syncInfo->recentFrames[j].isValid && syncInfo->recentFrames[j].frame->seqNumber > frame->seqNumber) {
+	pthread_spin_unlock(&(syncInfo->lock));
+	armTimer(syncInfo->recentFrames[j].frame->seqNumber, syncInfo);
+	return;
+      }
+    }
+    for(int k = 0; k < syncInfo->recentFramesIndex; k++) {
+      if(syncInfo->recentFrames[k].isValid && syncInfo->recentFrames[k].frame->seqNumber > frame->seqNumber) {
+	pthread_spin_unlock(&(syncInfo->lock));
+	armTimer(syncInfo->recentFrames[k].frame->seqNumber, syncInfo);
+	return;
+      }
+    }
     pthread_spin_unlock(&(syncInfo->lock));
-    // End Critical Section    
+    // End Critical Section
+
+    // Pass a known-bad sequence number to disarm the timer otherwise
+    armTimer(frame->seqNumber, syncInfo);
   }
 }
 
@@ -596,8 +645,10 @@ void handleRetransmission(uint16_t failedFrameSeq, struct linkLayerSync *syncInf
 {
   int index = WINDOW_SIZE + 2;
 
+  cout << "[DataLink] Retransmitting sequence number " << failedFrameSeq << endl;
+
   for(int i = 0; i < WINDOW_SIZE + 1; i++) {
-    if(syncInfo->recentFrames[i].frame && syncInfo->recentFrames[i].frame->seqNumber == failedFrameSeq) {
+    if(syncInfo->recentFrames[i].isValid && syncInfo->recentFrames[i].frame->seqNumber == failedFrameSeq) {
       index = i;
       break;
     }
@@ -619,15 +670,79 @@ void handleRetransmission(uint16_t failedFrameSeq, struct linkLayerSync *syncInf
 
   // Retransmit any frames after it
   for(int j = syncInfo->recentFramesIndex; j < WINDOW_SIZE + 1; j++) {
-    if(syncInfo->recentFrames[j].frame &&
+    if(syncInfo->recentFrames[j].isValid &&
        syncInfo->recentFrames[j].frame->seqNumber > failedFrameSeq) {
       transmitFrame(syncInfo->recentFrames[j].frame, syncInfo);
     }
   }
   for(int k = 0; k < syncInfo->recentFramesIndex; k++) {
-    if(syncInfo->recentFrames[k].frame &&
+    if(syncInfo->recentFrames[k].isValid &&
        syncInfo->recentFrames[k].frame->seqNumber > failedFrameSeq) {
       transmitFrame(syncInfo->recentFrames[k].frame, syncInfo);
     }
   }
+}
+
+void armTimer(uint16_t seqNumber, struct linkLayerSync *syncInfo)
+{
+  struct timeval current;
+  struct itimerspec value;
+  int index = WINDOW_SIZE + 2;
+
+  cout << "[DataLink] Setting timer for sequence number " << seqNumber << endl;
+
+  gettimeofday(&current, NULL);
+
+  pthread_spin_lock(&(syncInfo->lock));
+
+  for(int i = 0; i < WINDOW_SIZE + 1; i++) {
+    if(syncInfo->recentFrames[i].isValid && syncInfo->recentFrames[i].frame->seqNumber == seqNumber) {
+      index = i;
+      break;
+    }
+  }
+
+  if(index == WINDOW_SIZE + 2) {
+    // Couldn't find the frame in question. Disarm the timer.
+    value.it_value.tv_sec = 0;
+    value.it_value.tv_nsec = 0;
+    value.it_interval.tv_sec = 0;
+    value.it_interval.tv_nsec = 0;
+    timer_settime(syncInfo->timer, 0, &value, NULL);
+    pthread_spin_unlock(&(syncInfo->lock));
+    cout << "[DataLink] Disarmed timer" << endl;
+    return;
+  }
+
+  // Seconds counter ticked.
+  if(syncInfo->recentFrames[index].transmitTime.tv_sec != current.tv_sec) {
+    current.tv_usec += 1000000; // Add one second's worth of microseconds to the current microsecond count
+  }
+
+  // Timeout already expired. Retransmit the frame.
+  if(current.tv_usec - syncInfo->recentFrames[index].transmitTime.tv_usec >= TIMEOUT_US) {
+    pthread_spin_unlock(&(syncInfo->lock));
+    value.it_value.tv_sec = 0;
+    value.it_value.tv_nsec = 0;
+    value.it_interval.tv_sec = 0;
+    value.it_interval.tv_nsec = 0;
+    timer_settime(syncInfo->timer, 0, &value, NULL);
+    cout << "[DataLink] Disarmed timer" << endl;
+    cout << "[DataLink] Frame timed out, retransmitting!" << endl;
+    handleRetransmission(seqNumber, syncInfo);
+    return;
+  }
+
+  // Alright. Disarm the timer, then rearm with new time.
+  value.it_value.tv_sec = 0;
+  value.it_value.tv_nsec = ((TIMEOUT_US) - (current.tv_usec - syncInfo->recentFrames[index].transmitTime.tv_usec)) * 1000;
+  value.it_interval.tv_sec = 0;
+  value.it_interval.tv_nsec = 0;
+
+  pthread_spin_unlock(&(syncInfo->lock));
+
+  cout << "[DataLink] Armed timer with time of " << value.it_value.tv_nsec << " seconds for frame " 
+       << syncInfo->recentFrames[index].frame->seqNumber << endl;
+
+  timer_settime(syncInfo->timer, 0, &value, NULL);
 }

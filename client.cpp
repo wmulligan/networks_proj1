@@ -1,3 +1,9 @@
+/**
+ * Connects to the server
+ *
+ * @file client.cpp
+ * @author Will Mulligan
+ */
 #include <iostream>
 #include <pthread.h>
 #include <stdio.h>

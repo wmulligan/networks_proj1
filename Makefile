@@ -1,10 +1,12 @@
 all: server client
  
 server: server.o physical_layer.o datalink_layer.o network_layer.o server_app_layer.o queue.o mysql.o
-	g++ -pthread -I/usr/local/mysql-current/include -L/usr/local/mysql-current/lib/mysql -lmysqlclient -ldl -o server server.o physical_layer.o datalink_layer.o network_layer.o server_app_layer.o queue.o mysql.o
+	g++ -pthread -I/usr/local/mysql-current/include -L/usr/local/mysql-current/lib/mysql -lmysqlclient -ldl -o server server.o physical_layer.o datalink_layer.o network_layer.o -lrt server_app_layer.o queue.o mysql.o
+
 
 client: client.o physical_layer.o datalink_layer.o network_layer.o client_app_layer.o queue.o client_func.o
-	g++ -pthread -o client client.o physical_layer.o datalink_layer.o network_layer.o client_app_layer.o queue.o client_func.o
+	g++ -pthread -o client client.o physical_layer.o datalink_layer.o network_layer.o -lrt client_app_layer.o queue.o client_func.o
+
 
 server.o: server.cpp
 	g++ -c server.cpp
