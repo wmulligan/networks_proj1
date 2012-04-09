@@ -50,6 +50,7 @@ void * DataLinkLayer( void * longPointer )
   sev.sigev_notify = SIGEV_SIGNAL;
   sev.sigev_value.sival_ptr = (void *)(&syncInfo);
 
+  // TODO: This *needs* to be made safe for concurrent clients!
   sa.sa_flags = SA_SIGINFO;
   sa.sa_sigaction = sigHandler;
   if(isFirstClient) {
@@ -135,7 +136,6 @@ void * NwToPhHandler( void * longPointer )
 
 #ifdef VERBOSE_IPC_DEBUG
       printf("[DataLink] Received string %s from Network Layer\n", pPacket);
-
 #endif
     
       if(iRecvLength > MAX_PAYLOAD_SIZE) {
@@ -164,7 +164,9 @@ void * NwToPhHandler( void * longPointer )
 	struct frameInfo *temp = (struct frameInfo *)malloc(sizeof(struct frameInfo));
 	memcpy(temp, frameToSend, sizeof(struct frameInfo));
 
+#ifdef VERBOSE_XMIT_DEBUG
 	cout << "[DataLink] Copied frame with sequence number " << temp->seqNumber << endl;
+#endif
 
 	// Critical Section
 	pthread_spin_lock(&(syncInfo->lock));
@@ -182,7 +184,9 @@ void * NwToPhHandler( void * longPointer )
 	// Checksum and sequence number are managed by transmitFrame
 	transmitFrame(frameToSend, syncInfo);
 
+#ifdef VERBOSE_XMIT_DEBUG
 	cout << "[DataLink] Sending second frame in series!" << endl;
+#endif
 
 	// Now set up the second part of the packet and send it
 	frameToSend->frameType = 0x00;
@@ -199,7 +203,9 @@ void * NwToPhHandler( void * longPointer )
 	temp = (struct frameInfo *)malloc(sizeof(struct frameInfo));
 	memcpy(temp, frameToSend, sizeof(struct frameInfo));
 
+#ifdef VERBOSE_XMIT_DEBUG
 	cout << "[DataLink] Copied frame with sequence number " << temp->seqNumber << endl;
+#endif
 
 	// Critical Section
 	pthread_spin_lock(&(syncInfo->lock));
@@ -238,7 +244,9 @@ void * NwToPhHandler( void * longPointer )
 	struct frameInfo *temp = (struct frameInfo *)malloc(sizeof(struct frameInfo));
 	memcpy(temp, frameToSend, sizeof(struct frameInfo));
 
+#ifdef VERBOSE_XMIT_DEBUG
 	cout << "[DataLink] Copied frame with sequence number " << temp->seqNumber << endl;
+#endif
 
 	// Critical Section
 	pthread_spin_lock(&(syncInfo->lock));
@@ -308,7 +316,9 @@ void * PhToNwHandler( void * longPointer )
     // Check if we received an ACK
     if(receivedFrame->frameType == 1) {
       handleAck(receivedFrame, syncInfo);
+#ifdef VERBOSE_RECEIVE_DEBUG 
       cout << "[DataLink] Processed ACK frame" << endl;
+#endif
       //cout << "Freeing, line 289" << endl;
       free(receivedFrame);
       continue;
@@ -371,7 +381,9 @@ void * PhToNwHandler( void * longPointer )
       for(int i = 0; i < receivedFrame->payloadLength; i++) {
 	stash[i] = receivedFrame->payload[i];
       }
+#ifdef VERBOSE_RECEIVE_DEBUG
       cout << "[DataLink] Stashing frame to send to DLL" << endl;
+#endif
       stashReady = 1;
       //cout << "Freeing, line 353" << endl;
       free(receivedFrame);
@@ -379,7 +391,9 @@ void * PhToNwHandler( void * longPointer )
     } else {
       // Built on the assumption that we receive no more than 2 packets in a row without endOfFrame set.
       if(stashReady == 1) {
+#ifdef VERBOSE_RECEIVE_DEBUG
 	cout << "[DataLink] Unstashing the stash!" << endl;
+#endif
 	stashReady = 0;
 	iPacketLength = receivedFrame->payloadLength + MAX_PAYLOAD_SIZE;
 	pPacket = (char *)malloc(iPacketLength);
@@ -474,7 +488,9 @@ uint8_t transmitFrame(struct frameInfo *frame, struct linkLayerSync *syncInfo)
 
   // Populate the checksum field
   checksum = generateFCS(buffer, frame->payloadLength + FRAMING_SIZE - 2);
+#ifdef VERBOSE_XMIT_DEBUG
   printf("[DataLink] Calculated FCS as %04X\n", checksum);
+#endif
   buffer[(FRAMING_SIZE + frame->payloadLength) - 2] = (uint8_t)(checksum >> 8);
   buffer[(FRAMING_SIZE + frame->payloadLength) - 1] = (uint8_t)(checksum & 0x00FF);
 
@@ -634,10 +650,12 @@ void handleAck(struct frameInfo *frame, struct linkLayerSync *syncInfo)
     // We've gotten an ACK for the frame, so remove it from recently transmitted frames; we don't need to resend
     int id = WINDOW_SIZE + 2;
     for(int i = 0; i < WINDOW_SIZE + 1; i++) {
+#ifdef VERBOSE_XMIT_DEBUG
       cout << "[DataLink] Testing entry " << i << " - valid bit is " << syncInfo->recentFrames[i].isValid << endl;
       if(syncInfo->recentFrames[i].isValid) {
-      cout << "[DataLink] Entry " << i << " has sequence number " << syncInfo->recentFrames[i].frame->seqNumber << endl;
+	cout << "[DataLink] Entry " << i << " has sequence number " << syncInfo->recentFrames[i].frame->seqNumber << endl;
       }
+#endif
       if(syncInfo->recentFrames[i].isValid && syncInfo->recentFrames[i].frame->seqNumber == frame->seqNumber) {
 	id = i;
 	break;
@@ -870,13 +888,9 @@ void sigHandler(int sig, siginfo_t *si, void *uc)
 
   cout << "[DataLink] Timeout occurred!" << endl;
 
-  printf("Pointer uc points to %X\n", (unsigned int)uc);
-
   if(!uc) {
     return;
   }
-
-  cout << "May segfault here!" << endl;
 
   for(int j = syncInfo->recentFramesIndex; j < WINDOW_SIZE + 1; j++) {
     if(syncInfo->recentFrames[j].isValid) {
@@ -884,7 +898,6 @@ void sigHandler(int sig, siginfo_t *si, void *uc)
       return;
     }
   }
-  cout << "Got through half!" << endl;
   for(int k = 0; k < syncInfo->recentFramesIndex; k++) {
     if(syncInfo->recentFrames[k].isValid) {
       handleRetransmission(syncInfo->recentFrames[k].frame->seqNumber, syncInfo);
