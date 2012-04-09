@@ -50,6 +50,7 @@ void *TcpToDlHandler( void *longPointer )
 
   char * pFrame; // frame pointer
   char * pSlot;
+  char * pSlotCopy;
   int iSlotLength;
   
   while ( true )
@@ -67,6 +68,7 @@ void *TcpToDlHandler( void *longPointer )
 
     }
     cout << "[Physical] Received " << iRecvLength << " bytes from tcp." << endl;
+    pSlotCopy = pSlot;
     
     while ( iRecvLength > 0 ) {
       iSlotLength = pSlot[0];
@@ -82,7 +84,7 @@ void *TcpToDlHandler( void *longPointer )
       }
       cout << "[Physical] Sent " << iSendLength << " byte frame to datalink." << endl;
     }
-    delete pSlot;
+    delete pSlotCopy;
   }
 }
 
