@@ -72,7 +72,7 @@ void *TcpToDlHandler( void *longPointer )
     pSlotCopy = pSlot;
     
     while ( iRecvLength > 0 ) {
-      iSlotLength = pSlot[0];
+      iSlotLength = iRecvLength - 1;
       pFrame = (char *) malloc(sizeof(char)*iSlotLength);
       memcpy( pFrame, pSlot+1, iSlotLength );
       iRecvLength -= iSlotLength+1;

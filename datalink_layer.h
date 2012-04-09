@@ -17,7 +17,11 @@ void * DataLinkLayer( void * longPointer );
 // Size of an ACK frame, in bytes
 #define ACK_SIZE 5
 // Timeout in microseconds
-#define TIMEOUT_US 250000
+#define TIMEOUT_US 100000
+// Number of ACKs before a bad ACK. This is actually n+1 due to the way I coded it.
+#define BAD_ACKS 7
+// Number of data frames before a bad data frame. Again n+1.
+#define BAD_DATA 5
 
 // This is really verbose debug on checksum generation.
 #ifdef VERBOSE_CHECKSUM_DEBUG
@@ -53,6 +57,8 @@ struct linkLayerSync {
   uint8_t windowSize;
   uint16_t mainSequence;
   uint16_t ackSequence;
+  uint8_t acksUntilBad;
+  uint8_t dataUntilBad;
   struct transmittedFrame recentFrames[WINDOW_SIZE + 1];
   uint8_t recentFramesIndex;
   pthread_spinlock_t lock; // Used for sync between send and receive threads
