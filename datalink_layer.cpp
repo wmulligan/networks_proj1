@@ -34,7 +34,7 @@ void armTimer(uint16_t seqNumber, struct linkLayerSync *syncInfo);
 void sigHandler(int sig, siginfo_t *si, void *uc);
 
 // Globals.
-struct linkLayerSync *syncOne, *syncTwo;
+struct linkLayerSync *syncOne, *syncTwo, *syncThree;
 
 void * DataLinkLayer( void * longPointer )
 {
@@ -44,7 +44,8 @@ void * DataLinkLayer( void * longPointer )
   struct linkLayerSync *syncInfo = (struct linkLayerSync *)malloc(sizeof(struct linkLayerSync));
   struct sigaction sa;
   struct sigevent sev;
-  static int isFirstClient = 1;
+  static int signalAvail[3] = {1, 1, 1};
+  int sigNo;
 
   // Populate signal handling structures
   sev.sigev_notify = SIGEV_SIGNAL;
@@ -53,21 +54,34 @@ void * DataLinkLayer( void * longPointer )
   // TODO: This *needs* to be made safe for concurrent clients!
   sa.sa_flags = SA_SIGINFO;
   sa.sa_sigaction = sigHandler;
-  if(isFirstClient) {
+
+  if(signalAvail[0] == 1) {
+    signalAvail[0] = 0;
+    sigNo = 0;
     sev.sigev_signo = SIGUSR1;
     if( -1 == sigaction(SIGUSR1, &sa, NULL)) {
       cout << "Error configuring signals!" << endl;
       return;
     }
-    syncOne = syncInfo;
-    isFirstClient--;
-  } else {
+    syncOne = syncInfo;    
+  } else if(signalAvail[1] == 1) {
+    signalAvail[1] = 0;
+    sigNo = 1;
     sev.sigev_signo = SIGUSR2;
     if( -1 == sigaction(SIGUSR2, &sa, NULL)) {
       cout << "Error configuring signals!" << endl;
       return;
     }
-    syncTwo = syncInfo;
+    syncTwo = syncInfo;    
+  } else {
+    signalAvail[2] = 0;
+    sigNo = 2;
+    sev.sigev_signo = SIGALRM;
+    if( -1 == sigaction(SIGALRM, &sa, NULL)) {
+      cout << "Error configuring signals!" << endl;
+      return;
+    }
+    syncThree = syncInfo;    
   }
 
   // Populate the syncronization structure assigned to the threads
@@ -98,6 +112,8 @@ void * DataLinkLayer( void * longPointer )
   // Free the sync structure
   //cout << "Freeing, line 86" << endl;
   //free(syncInfo);
+
+  signalAvail[sigNo] = 1;
 
   cout << "[DataLink] Terminating." << endl;
   pthread_exit(NULL);
@@ -882,8 +898,10 @@ void sigHandler(int sig, siginfo_t *si, void *uc)
 
   if(sig == SIGUSR1) {
     syncInfo = syncOne;
-  } else {
+  } else if(sig == SIGUSR2) {
     syncInfo = syncTwo;
+  } else {
+    syncInfo = syncThree;
   }
 
   cout << "[DataLink] Timeout occurred!" << endl;
