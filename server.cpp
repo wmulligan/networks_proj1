@@ -12,6 +12,8 @@
 #include <sys/socket.h>
 #include <arpa/inet.h>
 #include <signal.h>
+#include <errno.h>
+#include <string.h>
 
 #include "queue.h"
 #include "physical_layer.h"
@@ -68,10 +70,14 @@ int main(int argc, char *argv[])
 
     // Accept connections to clients
     sClientSockLen = sizeof(sClientSockAddr);
-    if ( ( iClientSocket = accept( iSocket, (struct sockaddr *) &sClientSockAddr, &sClientSockLen ) ) == -1 ) {
+    while(( iClientSocket = accept( iSocket, (struct sockaddr *) &sClientSockAddr, &sClientSockLen ) ) == -1  && errno == EINTR) {
+      cout << "[Server] Error: " << strerror(errno) << endl;
+    }
+    if ( errno != EINTR && errno != 0) {
+      cout << "[Server] Error: " << strerror(errno) << endl;
       cout << "[Server] Error accepting new connections." << endl;
       break;
-    }
+    } 
     
     // Create queues
     initQueue( iClientSocket );
@@ -96,7 +102,7 @@ void sighandler(int sig)
 {
   cout << "[Server] Signal Caught. Closing socket connection." << endl;
   close(iSocket);
-  //exit(1);
+  exit(1);
 }
 
 

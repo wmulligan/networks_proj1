@@ -72,7 +72,7 @@ void *TcpToDlHandler( void *longPointer )
     pSlotCopy = pSlot;
     
     while ( iRecvLength > 0 ) {
-      iSlotLength = iRecvLength - 1;
+      iSlotLength = (unsigned char)pSlot[0];
       pFrame = (char *) malloc(sizeof(char)*iSlotLength);
       memcpy( pFrame, pSlot+1, iSlotLength );
       iRecvLength -= iSlotLength+1;
@@ -108,7 +108,7 @@ void *DlToTcpHandler( void *longPointer )
     cout << "[Physical] Received " << iRecvLength << " byte frame from datalink." << endl;
     
     pSlot = (char *) malloc(sizeof(char)*(SLOT_SIZE+SLOT_HDR_LENGTH));
-    pSlot[0] = (char) iRecvLength;
+    pSlot[0] = (unsigned char) iRecvLength;
     memcpy( pSlot+1, pFrame, iRecvLength );
     iSlotLength = iRecvLength + SLOT_HDR_LENGTH;
     delete pFrame;

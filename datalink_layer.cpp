@@ -308,7 +308,9 @@ void * PhToNwHandler( void * longPointer )
       cout << "[DataLink] Error receiving frame from physical." << endl;
       pthread_exit(NULL);
     }
+#ifdef VERBOSE_RECEIVE_DEBUG
     cout << "[DataLink] Received " << iRecvLength << " byte frame from physical." << endl;
+#endif
 
 #ifdef VERBOSE_RECEIVE_DEBUG
     printf("[DataLink] Received message. Contents: ");
@@ -776,6 +778,7 @@ void handleRetransmission(uint16_t failedFrameSeq, struct linkLayerSync *syncInf
   pthread_spin_lock(&(syncInfo->lock));
   syncInfo->windowSize = (syncInfo->mainSequence - failedFrameSeq);
   syncInfo->mainSequence = failedFrameSeq;
+  syncInfo->ackSequence = failedFrameSeq;
   pthread_spin_unlock(&(syncInfo->lock));
   // End Critical Section
 
@@ -841,6 +844,11 @@ void armTimer(uint16_t seqNumber, struct linkLayerSync *syncInfo)
   pthread_spin_lock(&(syncInfo->lock));
 
   for(int i = 0; i < WINDOW_SIZE + 1; i++) {
+#ifdef VERBOSE_XMIT_DEBUG
+    cout << "Checking index " << i << " - isValid set to " << syncInfo->recentFrames[i].isValid << endl;
+    if(syncInfo->recentFrames[i].isValid)
+      cout << "Sequence number is " << syncInfo->recentFrames[i].frame->seqNumber << endl;
+#endif
     if(syncInfo->recentFrames[i].isValid && syncInfo->recentFrames[i].frame->seqNumber == seqNumber) {
       index = i;
       break;
@@ -886,7 +894,7 @@ void armTimer(uint16_t seqNumber, struct linkLayerSync *syncInfo)
 
   pthread_spin_unlock(&(syncInfo->lock));
 
-  cout << "[DataLink] Armed timer with time of " << value.it_value.tv_nsec << " seconds for frame " 
+  cout << "[DataLink] Armed timer with time of " << value.it_value.tv_nsec << " nseconds for frame " 
        << syncInfo->recentFrames[index].frame->seqNumber << endl;
 
   timer_settime(syncInfo->timer, 0, &value, NULL);
