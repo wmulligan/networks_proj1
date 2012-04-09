@@ -36,6 +36,12 @@ struct frameInfo {
   uint8_t payloadLength;
   uint8_t payload[MAX_PAYLOAD_SIZE];
 };
+
+// Holds frames transmitted by datalink layer
+struct transmittedFrame {
+  struct timeval transmitTime;
+  struct frameInfo *frame;
+};
   
 // Syncs the send and receive threads for a single physical layer socket
 struct linkLayerSync {
@@ -43,6 +49,8 @@ struct linkLayerSync {
   uint8_t windowSize;
   uint16_t mainSequence;
   uint16_t ackSequence;
+  struct transmittedFrame recentFrames[WINDOW_SIZE + 1];
+  uint8_t recentFramesIndex;
   pthread_spinlock_t lock; // Used for sync between send and receive threads
 };
 
