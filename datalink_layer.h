@@ -16,8 +16,8 @@ void * DataLinkLayer( void * longPointer );
 #define ACK_SIZE 7
 
 // This is really verbose debug on checksum generation.
-#ifdef VERBOSE_CHECKSUM_DEBUG
-#undefine VERBOSE_CHECKSUM_DEBUG
+#ifndef VERBOSE_CHECKSUM_DEBUG
+#define VERBOSE_CHECKSUM_DEBUG
 #endif
 // Verbose debug on receive
 #define VERBOSE_RECEIVE_DEBUG

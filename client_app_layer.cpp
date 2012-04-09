@@ -21,36 +21,38 @@ void * ApplicationLayer( void * longPointer )
   int iSocket = (int) longPointer; // socket handle
   int iRecvLength; // length of recieved data
   int iSendLength; // length of sent data
+  char * pData; // data pointer
+  int iDataLength; // data length
   
   cout << "[Application] Initializing..." << endl;
   
-  while (1) {
-  
-    char pData[256];
+  while ( true )
+  {
+    pData = (char *) malloc(sizeof(char) * 256);
     cin.getline(pData, 256);
-    int iDataLength = strlen(pData)+1;
-    
+    iDataLength = strlen(pData) + 1;
+
     cout << "[Application] Sending: " << pData << endl;
     
     // Block until data is sent to network
     if ( ( iSendLength = ap_to_nw_send( iSocket, pData, iDataLength ) ) != iDataLength ) {
       cout << "[Application] Error sending data to network." << endl;
-      exit(1);
+      break;
     }
     cout << "[Application] Sent " << iSendLength << " byte data to network." << endl;
     
-    char * pReceivedData;
-    
     // Block until data is received from network
-    if ( ( iRecvLength = nw_to_ap_recv( iSocket, &pReceivedData ) ) == -1 ) {
+    if ( ( iRecvLength = nw_to_ap_recv( iSocket, &pData ) ) == -1 ) {
       cout << "[Application] Error receiving data from network." << endl;
-      exit(1);
+      break;
     }
     cout << "[Application] Received " << iRecvLength << " byte data from network." << endl;
-    cout << "[Application] Received: " << pReceivedData << endl;
-  
+    cout << "[Application] Received: " << pData << endl;
+    
+    delete pData;
   }
   
   cout << "[Application] Terminating." << endl;
+  pthread_exit(NULL);
 }
 

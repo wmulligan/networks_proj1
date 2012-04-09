@@ -54,6 +54,7 @@ void * DataLinkLayer( void * longPointer )
   free(syncInfo);
 
   cout << "[DataLink] Terminating." << endl;
+  pthread_exit(NULL);
 }
 
 void * NwToPhHandler( void * longPointer )
@@ -75,7 +76,7 @@ void * NwToPhHandler( void * longPointer )
     // Block until packet is received from network
     if ( ( iRecvLength = nw_to_dl_recv( iSocket, &pPacket ) ) == -1 ) {
       cout << "[DataLink] Error receiving packet from network." << endl;
-      break;
+      pthread_exit(NULL);
     }
     cout << "[DataLink] Received " << iRecvLength << " byte packet from network." << endl;
 
@@ -83,52 +84,14 @@ void * NwToPhHandler( void * longPointer )
     printf("[DataLink] Received string %s from Network Layer\n", pPacket);
 #endif
     
-    if(iRecvLength > MAX_PAYLOAD_SIZE) {
-      // Handle packets larger than maximum allowable payload size here
-      frameToSend = (struct frameInfo *)malloc(sizeof(struct frameInfo));
-
-      // Send first part of packet
-      frameToSend->frameType = 0x00;
-      frameToSend->endOfPacket = 0x00;
-      frameToSend->payloadLength = MAX_PAYLOAD_SIZE;      
-
-      // Copy in the payload
-      for(int i = 0; i < MAX_PAYLOAD_SIZE; i++) {
-	frameToSend->payload[i] = pPacket[i];
-      }
-
-      // Checksum and sequence number are managed by transmitFrame
-      transmitFrame(frameToSend, syncInfo);
-
-      // Now set up the second part of the packet and send it
-      frameToSend->frameType = 0x00;
-      frameToSend->endOfPacket = 0x01;
-      frameToSend->payloadLength = iRecvLength - MAX_PAYLOAD_SIZE;      
-
-      for(int i = MAX_PAYLOAD_SIZE; i < iRecvLength; i++) {
-	frameToSend->payload[i - MAX_PAYLOAD_SIZE] = pPacket[i];
-      }
-
-      // Checksum and sequence number are managed by transmitFrame
-      transmitFrame(frameToSend, syncInfo);
-
-      free(frameToSend);
-    } else {
-      frameToSend = (struct frameInfo *)malloc(sizeof(struct frameInfo));
-
-      frameToSend->frameType = 0x00;
-      frameToSend->endOfPacket = 0x01;
-      frameToSend->payloadLength = iRecvLength;
-      
-      // Copy in the payload
-      for(int i = 0; i < iRecvLength; i++) {
-	frameToSend->payload[i] = pPacket[i];
-      }
-
-      // Checksum and sequence number are managed by transmitFrame
-      transmitFrame(frameToSend, syncInfo);
-
-      free(frameToSend);
+    /* Turn packet into frame here */
+    char * pFrame = pPacket;
+    int iFrameLength = iRecvLength;
+    
+    // Block until frame is sent to physical
+    if ( ( iSendLength = dl_to_ph_send( iSocket, pFrame, iFrameLength ) ) != iFrameLength ) {
+      cout << "[DataLink] Error sending frame to physical." << endl;
+      pthread_exit(NULL);
     }
   }
 }
@@ -154,7 +117,7 @@ void * PhToNwHandler( void * longPointer )
     // Block until frame is received from physical
     if ( ( iRecvLength = ph_to_dl_recv( iSocket, &pFrame ) ) == -1 ) {
       cout << "[DataLink] Error receiving frame from physical." << endl;
-      continue;
+      pthread_exit(NULL);
     }
     cout << "[DataLink] Received " << iRecvLength << " byte frame from physical." << endl;
 
