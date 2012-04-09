@@ -81,7 +81,7 @@ void * ApToDlHandler( void * longPointer )
       iPacketLength = PACKET_HDR_LENGTH + ((iRecvLength > PACKET_SIZE) ? PACKET_SIZE : iRecvLength);
 
       cout << "[Network] Sending: " << pPacket->iNumber << "|" << static_cast<int>(pPacket->iEnd) << "|" << pPacket->pPayload << endl;
-      
+
       // Block until packet is sent to datalink
       if ( ( iSendLength = nw_to_dl_send( iSocket, (char *) pPacket, iPacketLength ) ) != iPacketLength ) {
         cout << "[Network] Error sending packet to datalink." << endl;

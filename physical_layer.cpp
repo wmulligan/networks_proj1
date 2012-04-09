@@ -54,6 +54,7 @@ void *TcpToDlHandler( void *longPointer )
       if (errno == EAGAIN) { usleep(1); }
       else {
         cout << "[Physical] Error receiving frame from tcp." << endl;
+        terminateQueue( iSocket );
         pthread_exit(NULL);
       }
     }
