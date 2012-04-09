@@ -17,6 +17,7 @@
 
 #include "physical_layer.h"
 #include "queue.h"
+#include "global.h"
 
 #define SLOT_SIZE 200
 #define SLOT_HDR_LENGTH 1
@@ -70,7 +71,7 @@ void *TcpToDlHandler( void *longPointer )
       }
 
     }
-    cout << "[Physical] Received " << iRecvLength << " bytes from tcp." << endl;
+    if (g_debug) cout << "[Physical] Received " << iRecvLength << " bytes from tcp." << endl;
     pSlotCopy = pSlot;
     
     while ( iRecvLength > 0 ) {
@@ -85,7 +86,7 @@ void *TcpToDlHandler( void *longPointer )
         cout << "[Physical] Error sending frame to datalink." << endl;
         pthread_exit(NULL);
       }
-      cout << "[Physical] Sent " << iSendLength << " byte frame to datalink." << endl;
+      if (g_debug) cout << "[Physical] Sent " << iSendLength << " byte frame to datalink." << endl;
     }
     delete pSlotCopy;
   }
@@ -107,7 +108,7 @@ void *DlToTcpHandler( void *longPointer )
       cout << "[Physical] Error receiving frame from datalink." << endl;
       pthread_exit(NULL);
     }
-    cout << "[Physical] Received " << iRecvLength << " byte frame from datalink." << endl;
+    if (g_debug) cout << "[Physical] Received " << iRecvLength << " byte frame from datalink." << endl;
     
     pSlot = (char *) malloc(sizeof(char)*(SLOT_SIZE+SLOT_HDR_LENGTH));
     pSlot[0] = (char) iRecvLength;
@@ -120,7 +121,7 @@ void *DlToTcpHandler( void *longPointer )
       cout << "[Physical] Error sending frame to tcp." << endl;
       pthread_exit(NULL);
     }
-    cout << "[Physical] Sent " << iSendLength << " bytes to tcp." << endl;
+    if (g_debug) cout << "[Physical] Sent " << iSendLength << " bytes to tcp." << endl;
     
     delete pSlot;
   }

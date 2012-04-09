@@ -19,6 +19,7 @@
 #include "datalink_layer.h"
 #include "network_layer.h"
 #include "client_app_layer.h"
+#include "global.h"
 
 using namespace std;
 
@@ -28,6 +29,7 @@ int iSocket; // socket handle
 
 int main(int argc, char *argv[])
 {
+  char* serverIP; 	//server IP address
   struct sockaddr_in sServerSockAddr; // server socket address
   int iClientSocket; // client socket handle
   pthread_t iPhysicalThreadId; // physical layer thread id
@@ -35,9 +37,18 @@ int main(int argc, char *argv[])
   pthread_t iNetworkThreadId; // physical layer thread id
   pthread_t iApplicationThreadId; // physical layer thread id
   
+  if (argc<2) {
+    printf("Usage: %s <ip address> <debug>\n", argv[0]);
+    exit(1);
+  }
+  else {
+    serverIP=argv[1];
+  }
+  if (argc == 3) g_debug = atoi(argv[2]);
+
   signal(SIGABRT, &sighandler);
-	signal(SIGTERM, &sighandler);
-	signal(SIGINT, &sighandler);
+  signal(SIGTERM, &sighandler);
+  signal(SIGINT, &sighandler);
   
   cout << "[Client] Initializing..." << endl;
   
@@ -50,7 +61,8 @@ int main(int argc, char *argv[])
   // Initialize Server Address
   sServerSockAddr.sin_family      = AF_INET;
   sServerSockAddr.sin_port        = htons(4000); // todo: fix port num
-  sServerSockAddr.sin_addr.s_addr = htonl(INADDR_ANY); // todo: fix address
+  sServerSockAddr.sin_addr.s_addr = inet_addr(serverIP); //server IP address
+  //sServerSockAddr.sin_addr.s_addr = htonl(INADDR_ANY); // todo: fix address
   
   // Connect to Socket
   if ( connect( iSocket, (struct sockaddr *) &sServerSockAddr, sizeof( sServerSockAddr ) ) == -1 ) {
@@ -74,9 +86,6 @@ int main(int argc, char *argv[])
   pthread_join(iDataLinkThreadId, NULL);
   pthread_join(iNetworkThreadId, NULL);
   pthread_join(iApplicationThreadId, NULL);
-  
-  //wait for command
-  cout << "[Client]";
 
   cout << "[Client] Terminating." << endl;
   close(iSocket);

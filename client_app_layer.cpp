@@ -17,6 +17,7 @@
 #include "client_app_layer.h"
 #include "queue.h"
 #include "client_func.h"
+#include "global.h"
 
 using namespace std;
 
@@ -38,11 +39,11 @@ void * ApplicationLayer( void * longPointer )
 	  int loginattempt = 0;
 
           char *pInput; //input string 
-	  pInput = (char *) malloc(sizeof(char) * 256);
+	  pInput = (char *) malloc(sizeof(char) * 512);
 	  cout<<"[Application] >> ";
 	  memset(pInput, 0, sizeof(pInput));
 	  // Read input 
-	  cin.getline(pInput, 256);
+	  cin.getline(pInput, 512);
 	  
 	  //validate commands entered according to current state of client
 	  if (strcmp(pInput,"exit")==0 || strcmp(pInput,"exit")==0){
@@ -87,7 +88,7 @@ void * ApplicationLayer( void * longPointer )
 	  
 	  int iDataLength = strlen(pInput)+1;
 	  
-	  cout << "[Application] Sending: " << pInput << endl;
+	  if (g_debug) cout << "[Application] Sending: " << pInput << endl;
 	  
 	  //send time
           gettimeofday(&stime,NULL);
@@ -98,7 +99,7 @@ void * ApplicationLayer( void * longPointer )
 	    cout << "[Application] Error sending data to network." << endl;
 	    break;
 	  }
-	  cout << "[Application] Sent " << iSendLength << " byte data to network." << endl;
+	  if (g_debug) cout << "[Application] Sent " << iSendLength << " byte data to network." << endl;
 	  
 	  char * pReceivedData;
 	  
@@ -107,8 +108,8 @@ void * ApplicationLayer( void * longPointer )
 	    cout << "[Application] Error receiving data from network." << endl;
 	    break;
 	  }
-	  cout << "[Application] Received " << iRecvLength << " byte data from network." << endl;
-	  cout << "[Application] Received: " << pReceivedData << endl;
+	  if (g_debug) cout << "[Application] Received " << iRecvLength << " byte data from network." << endl;
+	  if (g_debug) cout << "[Application] Received: " << pReceivedData << endl;
 
 	  //receive time
           gettimeofday(&etime,NULL);
@@ -151,7 +152,7 @@ void queryPicture(intptr_t sockt, char* pInput){
 
 	  int iDataLength = strlen(pInput)+1;
 	  
-	  cout << "[Application] Sending: " << pInput << endl;
+	  if (g_debug) cout << "[Application] Sending: " << pInput << endl;
 	  
 	  // Block until data is sent to network
 	  // Send command first
@@ -169,8 +170,8 @@ void queryPicture(intptr_t sockt, char* pInput){
 	    cout << "[Application] Error receiving data from network." << endl;
 	    exit(1);
 	  }
-	  cout << "[Application] Received " << iRecvLength << " byte data from network." << endl;
-	  cout << "[Application] Received: " << pReceivedData << endl;
+	  if (g_debug) cout << "[Application] Received " << iRecvLength << " byte data from network." << endl;
+	  if (g_debug) cout << "[Application] Received: " << pReceivedData << endl;
 
 	  //check if reply msg is success
 	  if (pReceivedData[0]==1){
@@ -187,8 +188,8 @@ void queryPicture(intptr_t sockt, char* pInput){
 		    cout << "[Application] Error receiving data from network." << endl;
 		    exit(1);
 		  }
-		  cout << "[Application] Received " << iRecvLength << " byte data from network." << endl;
-		  cout << "[Application] Received: " << pReceivedData << endl;
+		  if (g_debug) cout << "[Application] Received " << iRecvLength << " byte data from network." << endl;
+		  if (g_debug) cout << "[Application] Received: " << pReceivedData << endl;
 
 		  //write received data to file
 		  write(pictureFile,pictureBuffer,iRecvLength);
@@ -241,7 +242,7 @@ void sendPicture(intptr_t sockt, char* pInput){
 		exit(-1);
 	}
 
-	cout << "[Application] Sending: " << pInput << endl;
+	if (g_debug) cout << "[Application] Sending: " << pInput << endl;
 	  
 	  // Block until data is sent to network
 	  // Send command and filename
@@ -250,7 +251,7 @@ void sendPicture(intptr_t sockt, char* pInput){
 	    exit(1);
 	  }
 
-	  cout << "[Application] Sent " << iSendLength << " byte data to network." << endl;
+	  if (g_debug) cout << "[Application] Sent " << iSendLength << " byte data to network." << endl;
 
 	
 	  // Block until data is sent to network
@@ -259,7 +260,7 @@ void sendPicture(intptr_t sockt, char* pInput){
 	    cout << "[Application] Error sending data to network." << endl;
 	    exit(1);
 	  }
-	  cout << "[Application] Sent " << iSendLength << " byte data to network." << endl;
+	  if (g_debug) cout << "[Application] Sent " << iSendLength << " byte data to network." << endl;
 
 	  
 	
@@ -276,8 +277,8 @@ void sendPicture(intptr_t sockt, char* pInput){
 	  }
 	  
 	  
-	  cout << "[Application] Received: " << iRecvLength << " byte data from network." << endl;
-	  cout << "[Application] Received: " << pReceivedData << endl;
+	  if (g_debug) cout << "[Application] Received: " << iRecvLength << " byte data from network." << endl;
+	  if (g_debug) cout << "[Application] Received: " << pReceivedData << endl;
 	  //check if picture upload was successful
 	  if (pReceivedData[0] == 1)
 		cout<<"[Application] Picture updated successfully."<<endl;

@@ -17,6 +17,7 @@
 
 #include "network_layer.h"
 #include "queue.h"
+#include "global.h"
 
 #define PACKET_SIZE 256
 #define PACKET_HDR_LENGTH 3
@@ -70,7 +71,7 @@ void * ApToDlHandler( void * longPointer )
       cout << "[Network] Error receiving data from application." << endl;
       pthread_exit(NULL);
     }
-    cout << "[Network] Received " << iRecvLength << " byte data from application." << endl;
+    if (g_debug) cout << "[Network] Received " << iRecvLength << " byte data from application." << endl;
     pDataCopy = pData;
     
     // Break data into packets
@@ -83,14 +84,14 @@ void * ApToDlHandler( void * longPointer )
       memcpy( pPacket->pPayload, pData, ((iRecvLength > PACKET_SIZE) ? PACKET_SIZE : iRecvLength) );
       iPacketLength = PACKET_HDR_LENGTH + ((iRecvLength > PACKET_SIZE) ? PACKET_SIZE : iRecvLength);
 
-      cout << "[Network] Sending: " << pPacket->iNumber << "|" << static_cast<int>(pPacket->iEnd) << "|" << pPacket->pPayload << endl;
+      if (g_debug) cout << "[Network] Sending: " << pPacket->iNumber << "|" << static_cast<int>(pPacket->iEnd) << "|" << pPacket->pPayload << endl;
 
       // Block until packet is sent to datalink
       if ( ( iSendLength = nw_to_dl_send( iSocket, (char *) pPacket, iPacketLength ) ) != iPacketLength ) {
         cout << "[Network] Error sending packet to datalink." << endl;
         pthread_exit(NULL);
       }
-      cout << "[Network] Sent " << iSendLength << " byte packet to datalink." << endl;
+      if (g_debug) cout << "[Network] Sent " << iSendLength << " byte packet to datalink." << endl;
       
       pData += PACKET_SIZE;
       iRecvLength -= PACKET_SIZE;
@@ -121,8 +122,8 @@ void * DlToApHandler( void * longPointer )
         cout << "[Network] Error receiving packet from datalink." << endl;
         pthread_exit(NULL);
       }
-      cout << "[Network] Received " << iRecvLength << " byte packet from datalink." << endl;
-      cout << "[Network] Received: " << pPacket->iNumber << "|" << static_cast<int>(pPacket->iEnd) << "|" << pPacket->pPayload << endl;
+      if (g_debug) cout << "[Network] Received " << iRecvLength << " byte packet from datalink." << endl;
+      if (g_debug) cout << "[Network] Received: " << pPacket->iNumber << "|" << static_cast<int>(pPacket->iEnd) << "|" << pPacket->pPayload << endl;
 
       // Allocate more memory
       iDataLength += (iRecvLength - PACKET_HDR_LENGTH);
@@ -143,7 +144,7 @@ void * DlToApHandler( void * longPointer )
       cout << "[Network] Error sending data to application." << endl;
       pthread_exit(NULL);
     }
-    cout << "[Network] Sent " << iSendLength << " byte data to application." << endl;
+    if (g_debug) cout << "[Network] Sent " << iSendLength << " byte data to application." << endl;
   }
 }
 
