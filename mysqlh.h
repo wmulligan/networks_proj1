@@ -8,10 +8,7 @@
 #include <mysql.h>
 #include <iostream>
 	
-#define DBHOST "mysql.wpi.edu"
-#define USER "klevis"
-#define PASSWORD "MJDyRB"
-#define DATABASE "cs4516_proj1"
+
 
 using namespace std;
 
