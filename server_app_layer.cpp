@@ -30,7 +30,7 @@ void * ApplicationLayer( void * longPointer )
   int iRecvLength; // length of recieved data
   int iSendLength; // length of sent data
   MYSQL* mysqlConn = dbConnect(); //connect to db and save handler
-
+  char * pData;
 
   int iDataLength;
 
@@ -38,7 +38,7 @@ void * ApplicationLayer( void * longPointer )
   
   while ( true )
   {
-    char * pData;
+    
    
     
     // Block until data is received from network
@@ -47,9 +47,10 @@ void * ApplicationLayer( void * longPointer )
       break;
     }
     cout << "[Application] Received " << iRecvLength << " byte data from network." << endl;
-    cout << "[Application] Received: " << pData << endl;
+    cout << "[Application] Received: " << pData << endl;  
 
-	
+  
+
     char *pSendData;
     pSendData = (char*)malloc(400*sizeof(char));
     memset(pSendData, 0, sizeof(pSendData));

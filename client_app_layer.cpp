@@ -25,7 +25,7 @@ void * ApplicationLayer( void * longPointer )
   int iRecvLength; // length of recieved data
   int iSendLength; // length of sent data
   int loggedIn = 0; //user authenticated?
-   
+  char *pInput; //input string 
 
   cout << "[Application] Initializing..." << endl;
  
@@ -33,13 +33,13 @@ void * ApplicationLayer( void * longPointer )
   app_welcomeMsg();
 
   while(1){
-	  
-          char *pInput; //input string
-	  pInput = (char *) malloc(sizeof(char) * 256);
+	   
+          
+	  pInput = (char *) malloc(sizeof(char) * 500);
 	  cout<<"[Application] >> ";
 	  memset(pInput, 0, sizeof(pInput));
 	  // Read input 
-	  cin.getline(pInput, 256);
+	  cin.getline(pInput, 500);
 	  
 	  //validate commands entered according to current state of client
 	  if (strcmp(pInput,"exit")==0 || strcmp(pInput,"exit")==0){
