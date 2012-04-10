@@ -25,10 +25,10 @@ void * DataLinkLayer( void * longPointer );
 
 // This is really verbose debug on checksum generation.
 #ifdef VERBOSE_CHECKSUM_DEBUG
-#undefine VERBOSE_CHECKSUM_DEBUG
+#define VERBOSE_CHECKSUM_DEBUG
 #endif
 // Verbose debug on receive
-#ifndef VERBOSE_RECEIVE_DEBUG
+#ifdef VERBOSE_RECEIVE_DEBUG
 #define VERBOSE_RECEIVE_DEBUG
 #endif
 // Verbose debug on transmit

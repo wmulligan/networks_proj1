@@ -18,6 +18,7 @@
 
 #include "datalink_layer.h"
 #include "queue.h"
+#include "global.h"
 
 using namespace std;
 
@@ -148,11 +149,7 @@ void * NwToPhHandler( void * longPointer )
 	cout << "[DataLink] Error receiving packet from network." << endl;
 	pthread_exit(NULL);
       }
-      cout << "[DataLink] Received " << iRecvLength << " byte packet from network." << endl;
-
-#ifdef VERBOSE_IPC_DEBUG
-      printf("[DataLink] Received string %s from Network Layer\n", pPacket);
-#endif
+      if (g_debug) cout << "[DataLink] Received " << iRecvLength << " byte packet from network." << endl;
     
       if(iRecvLength > MAX_PAYLOAD_SIZE) {
 	if(iRecvLength >= 2 * MAX_PAYLOAD_SIZE) {
@@ -316,9 +313,7 @@ void * PhToNwHandler( void * longPointer )
       cout << "[DataLink] Error receiving frame from physical." << endl;
       pthread_exit(NULL);
     }
-#ifdef VERBOSE_RECEIVE_DEBUG
-    cout << "[DataLink] Received " << iRecvLength << " byte frame from physical." << endl;
-#endif
+    if (g_debug) cout << "[DataLink] Received " << iRecvLength << " byte frame from physical." << endl;
 
 #ifdef VERBOSE_RECEIVE_DEBUG
     printf("[DataLink] Received message. Contents: ");
@@ -480,11 +475,15 @@ uint8_t transmitFrame(struct frameInfo *frame, struct linkLayerSync *syncInfo)
     return 0x00;
   }
 
-  // Set sequence number for this frame
-  frame->seqNumber = syncInfo->mainSequence;
+  // Wait for window to open up
+  while(syncInfo->windowSize == 0);
+
   // Critical Section
   pthread_spin_lock(&(syncInfo->lock));
+  // Set sequence number for this frame
+  frame->seqNumber = syncInfo->mainSequence;
   syncInfo->mainSequence++; // Increment sequence number for next sent frame
+  syncInfo->windowSize--;
   pthread_spin_unlock(&(syncInfo->lock));
   // End Critical Section
 
@@ -533,32 +532,21 @@ uint8_t transmitFrame(struct frameInfo *frame, struct linkLayerSync *syncInfo)
   pthread_spin_unlock(&(syncInfo->lock));
   // End Critical Section
 
-  // Wait for window to open up
-  while(syncInfo->windowSize == 0);
-
   // Transmit our frame
 
 #ifdef VERBOSE_XMIT_DEBUG
-    printf("Transmitting message. Contents: ");
-    for(int j = 0; j < FRAMING_SIZE+frame->payloadLength; j++) {
-      printf("%02X ", buffer[j]);
-    }
-    printf("\n");
+  printf("Transmitting message. Contents: ");
+  for(int j = 0; j < FRAMING_SIZE+frame->payloadLength; j++) {
+    printf("%02X ", buffer[j]);
+  }
+  printf("\n");
 #endif
-
-  // Critical Section
-  pthread_spin_lock(&(syncInfo->lock));
-  syncInfo->windowSize--; // Decrement available window slots
-  pthread_spin_unlock(&(syncInfo->lock));
-  // End Critical Section
-
+  
   // Block until frame is sent to physical
   if((toReturn = dl_to_ph_send(syncInfo->socket, buffer, (FRAMING_SIZE + frame->payloadLength)) ) != (FRAMING_SIZE + frame->payloadLength)) {
     cout << "[DataLink] Error sending frame to physical." << endl;
   }
-#ifdef VERBOSE_XMIT_DEBUG
-  cout << "[DataLink] Sent " << toReturn << " byte frame to physical with sequence number " << frame->seqNumber << endl;
-#endif
+  if (g_debug) cout << "[DataLink] Sent " << toReturn << " byte frame to physical with sequence number " << frame->seqNumber << endl;
 
   // Now arm timer
   armTimer(frame->seqNumber, syncInfo);
@@ -602,7 +590,7 @@ uint8_t sendAck(uint16_t seqNumber, struct linkLayerSync *syncInfo)
   if((toReturn = dl_to_ph_send(syncInfo->socket, ack, ACK_SIZE) ) != ACK_SIZE) {
     cout << "[DataLink] Error sending ACK to physical." << endl;
   }
-  cout << "[DataLink] Sent ACK frame to physical with sequence number " << seqNumber << endl;
+  if (g_debug) cout << "[DataLink] Sent ACK frame to physical with sequence number " << seqNumber << endl;
 
   //free(ack);
 
@@ -784,7 +772,7 @@ void handleRetransmission(uint16_t failedFrameSeq, struct linkLayerSync *syncInf
   // Reset sequence numbers for retransmission
   // Critical Section
   pthread_spin_lock(&(syncInfo->lock));
-  syncInfo->windowSize = (syncInfo->mainSequence - failedFrameSeq);
+  syncInfo->windowSize = 1;
   syncInfo->mainSequence = failedFrameSeq;
   syncInfo->ackSequence = failedFrameSeq;
   pthread_spin_unlock(&(syncInfo->lock));
@@ -800,9 +788,11 @@ void handleRetransmission(uint16_t failedFrameSeq, struct linkLayerSync *syncInf
   pthread_spin_unlock(&(syncInfo->lock));
   // End Critical Section	
   
+  cout << "[DataLink] Retransmitting frame with sequence number " << failedFrameSeq << " now" << endl;
+
   // Retransmit the failed frame
   transmitFrame(syncInfo->recentFrames[index].frame, syncInfo);
-
+#if 0
   // Retransmit any frames after it
   for(int j = syncInfo->recentFramesIndex; j < WINDOW_SIZE + 1; j++) {
     if(syncInfo->recentFrames[j].isValid &&
@@ -837,6 +827,7 @@ void handleRetransmission(uint16_t failedFrameSeq, struct linkLayerSync *syncInf
       transmitFrame(syncInfo->recentFrames[k].frame, syncInfo);
     }
   }
+#endif
 }
 
 void armTimer(uint16_t seqNumber, struct linkLayerSync *syncInfo)
