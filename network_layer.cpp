@@ -84,6 +84,11 @@ void * ApToDlHandler( void * longPointer )
       memcpy( pPacket->pPayload, pData, ((iRecvLength > PACKET_SIZE) ? PACKET_SIZE : iRecvLength) );
       iPacketLength = PACKET_HDR_LENGTH + ((iRecvLength > PACKET_SIZE) ? PACKET_SIZE : iRecvLength);
 
+      struct timespec ts;
+      ts.tv_sec = 0;
+      ts.tv_nsec = 110000000;
+      nanosleep(&ts, NULL);
+
       if (g_debug) cout << "[Network] Sending: " << pPacket->iNumber << "|" << static_cast<int>(pPacket->iEnd) << "|" << pPacket->pPayload << endl;
 
       // Block until packet is sent to datalink

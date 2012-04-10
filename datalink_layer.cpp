@@ -204,6 +204,11 @@ void * NwToPhHandler( void * longPointer )
 	cout << "[DataLink] Sending second frame in series!" << endl;
 #endif
 
+	struct timespec ts;
+	ts.tv_sec = 0;
+	ts.tv_nsec = 125000000;
+	nanosleep(&ts, NULL);
+
 	// Now set up the second part of the packet and send it
 	frameToSend->frameType = 0x00;
 	frameToSend->endOfPacket = 0x01;
