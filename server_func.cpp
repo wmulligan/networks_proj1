@@ -156,7 +156,7 @@ char* processCommand(char *data, MYSQL* conn, int *userType, int* selectID){
 
 				
 		}
-		else if (*selectID==1){//if an id has been selected
+		else if (*selectID){//if an id has been selected
 			if ((words[0].compare("QUERY") == 0 || words[0].compare("query")==0) && words.size()==2){
 				memset(query, 0, sizeof(query));//clean query buffer
 				memset(reply, 0, sizeof(reply));//clean reply buffer
@@ -372,7 +372,7 @@ char* processLogin(char *data, MYSQL* conn,int *userType, int* selectID){
 	//check for login or create account command
 	if ((words[0].compare("login") == 0 || words[0].compare("LOGIN")==0) && words.size()==3){
 		// query to be used for authentication
-		sprintf(query, "SELECT authorized FROM users where username='%s' and password='%s'",(char*)words[1].c_str(),(char*)words[2].c_str());
+		sprintf(query, "SELECT authorized FROM users where username='%s' and password='%s' LIMIT 1",(char*)words[1].c_str(),(char*)words[2].c_str());
 		//run query		
 		qReturn = mysql_query(conn, query);
 		if (qReturn != 0) {

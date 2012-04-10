@@ -76,6 +76,7 @@ void *TcpToDlHandler( void *longPointer )
     
     while ( iRecvLength > 0 ) {
       iSlotLength = (unsigned char)pSlot[0];
+      if (iSlotLength > iRecvLength) cout << "[Physical] NOT ENOUGH DATA!!!! BAD!!!" << endl;
       pFrame = (char *) malloc(sizeof(char)*iSlotLength);
       memcpy( pFrame, pSlot+1, iSlotLength );
       iRecvLength -= iSlotLength+1;
