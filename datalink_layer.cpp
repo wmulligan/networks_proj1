@@ -18,6 +18,7 @@
 
 #include "datalink_layer.h"
 #include "queue.h"
+#include "global.h"
 
 using namespace std;
 
@@ -148,11 +149,7 @@ void * NwToPhHandler( void * longPointer )
 	cout << "[DataLink] Error receiving packet from network." << endl;
 	pthread_exit(NULL);
       }
-      cout << "[DataLink] Received " << iRecvLength << " byte packet from network." << endl;
-
-#ifdef VERBOSE_IPC_DEBUG
-      printf("[DataLink] Received string %s from Network Layer\n", pPacket);
-#endif
+      if (g_debug) cout << "[DataLink] Received " << iRecvLength << " byte packet from network." << endl;
     
       if(iRecvLength > MAX_PAYLOAD_SIZE) {
 	if(iRecvLength >= 2 * MAX_PAYLOAD_SIZE) {
@@ -311,9 +308,7 @@ void * PhToNwHandler( void * longPointer )
       cout << "[DataLink] Error receiving frame from physical." << endl;
       pthread_exit(NULL);
     }
-#ifdef VERBOSE_RECEIVE_DEBUG
-    cout << "[DataLink] Received " << iRecvLength << " byte frame from physical." << endl;
-#endif
+    if (g_debug) cout << "[DataLink] Received " << iRecvLength << " byte frame from physical." << endl;
 
 #ifdef VERBOSE_RECEIVE_DEBUG
     printf("[DataLink] Received message. Contents: ");
@@ -551,9 +546,7 @@ uint8_t transmitFrame(struct frameInfo *frame, struct linkLayerSync *syncInfo)
   if((toReturn = dl_to_ph_send(syncInfo->socket, buffer, (FRAMING_SIZE + frame->payloadLength)) ) != (FRAMING_SIZE + frame->payloadLength)) {
     cout << "[DataLink] Error sending frame to physical." << endl;
   }
-#ifdef VERBOSE_XMIT_DEBUG
-  cout << "[DataLink] Sent " << toReturn << " byte frame to physical with sequence number " << frame->seqNumber << endl;
-#endif
+  if (g_debug) cout << "[DataLink] Sent " << toReturn << " byte frame to physical with sequence number " << frame->seqNumber << endl;
 
   // Now arm timer
   armTimer(frame->seqNumber, syncInfo);
@@ -597,7 +590,7 @@ uint8_t sendAck(uint16_t seqNumber, struct linkLayerSync *syncInfo)
   if((toReturn = dl_to_ph_send(syncInfo->socket, ack, ACK_SIZE) ) != ACK_SIZE) {
     cout << "[DataLink] Error sending ACK to physical." << endl;
   }
-  cout << "[DataLink] Sent ACK frame to physical with sequence number " << seqNumber << endl;
+  if (g_debug) cout << "[DataLink] Sent ACK frame to physical with sequence number " << seqNumber << endl;
 
   //free(ack);
 

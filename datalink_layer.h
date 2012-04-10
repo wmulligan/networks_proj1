@@ -29,11 +29,11 @@ void * DataLinkLayer( void * longPointer );
 #endif
 // Verbose debug on receive
 #ifdef VERBOSE_RECEIVE_DEBUG
-#undefine VERBOSE_RECEIVE_DEBUG
+#define VERBOSE_RECEIVE_DEBUG
 #endif
 // Verbose debug on transmit
 #ifdef VERBOSE_XMIT_DEBUG
-#undefine VERBOSE_XMIT_DEBUG
+#define VERBOSE_XMIT_DEBUG
 #endif
 // Verbose interlayer communication debug
 #ifdef VERBOSE_IPC_DEBUG

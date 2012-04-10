@@ -51,18 +51,21 @@ void *TcpToDlHandler( void *longPointer )
   intptr_t iSocket = (intptr_t) longPointer; // client socket handle
   int iRecvLength; // length of recieved data
   int iSendLength; // length of sent data
-  
   char * pFrame; // frame pointer
   char * pSlot;
-  char * pSlotCopy;
-  int iSlotLength;
+  char * pSlotStart;
+  int iSlotLength = 0;
+  int iFrameLength;
+  
+  pSlot = (char *) malloc(sizeof(char)*157);
+  pSlotStart = pSlot;
   
   while ( true )
   {
-    pSlot = (char *) malloc(sizeof(char)*1024);
+    pSlot = pSlotStart;
     
     // Block until frame is received from tcp
-    while ( ( iRecvLength = recv( iSocket, pSlot, 1024, NULL ) ) <= 0 ) {
+    while ( ( iRecvLength = recv( iSocket, pSlot+iSlotLength, 157-iSlotLength, NULL ) ) <= 0 ) {
       if (errno == EAGAIN) { usleep(1); }
       else {
         cout << "[Physical] Error receiving frame from tcp." << endl;
@@ -72,26 +75,30 @@ void *TcpToDlHandler( void *longPointer )
 
     }
     if (g_debug) cout << "[Physical] Received " << iRecvLength << " bytes from tcp." << endl;
-    pSlotCopy = pSlot;
+	iSlotLength += iRecvLength;
     
-    while ( iRecvLength > 0 ) {
-      iSlotLength = (unsigned char)pSlot[0];
-      if (iSlotLength > iRecvLength) {
-        cout << "[Physical] NOT ENOUGH DATA!!!! BAD!!!" << endl;
+    while ( iSlotLength > 0 ) {
+      iFrameLength = (unsigned char) pSlot[0];
+      if (iFrameLength > iSlotLength-1) {
+		cout << "[Physical] -----------------------" << endl;
+		cout << "[Physical] Waiting for " << iFrameLength << " byte frame." << endl;
+		cout << "[Physical] Only have " << iSlotLength-1 << " byte data left." << endl;
+        cout << "[Physical] -----------------------" << endl;
+		memcpy( pSlotStart, pSlot, iSlotLength );
+		break;
       }
-      pFrame = (char *) malloc(sizeof(char)*iSlotLength);
-      memcpy( pFrame, pSlot+1, iSlotLength );
-      iRecvLength -= iSlotLength+1;
-      pSlot += iSlotLength+1;
+      pFrame = (char *) malloc(sizeof(char)*iFrameLength);
+      memcpy( pFrame, pSlot+1, iFrameLength );
+      iSlotLength -= iFrameLength+1;
+      pSlot += iFrameLength+1;
       
       // Block until frame is sent to datalink
-      if ( ( iSendLength = ph_to_dl_send( iSocket, pFrame, iSlotLength ) ) != iSlotLength ) {
+      if ( ( iSendLength = ph_to_dl_send( iSocket, pFrame, iFrameLength ) ) != iFrameLength ) {
         cout << "[Physical] Error sending frame to datalink." << endl;
         pthread_exit(NULL);
       }
       if (g_debug) cout << "[Physical] Sent " << iSendLength << " byte frame to datalink." << endl;
     }
-    delete pSlotCopy;
   }
 }
 
