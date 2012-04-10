@@ -28,7 +28,7 @@ void * ApplicationLayer( void * longPointer )
   int iSendLength; // length of sent data
   int loggedIn = 0; //user authenticated?
   struct timeval stime, etime; //timer references
-
+  char *pInput; //input string 
 
   cout << "[Application] Initializing..." << endl;
  
@@ -38,10 +38,8 @@ void * ApplicationLayer( void * longPointer )
   while(1){
 	  int loginattempt = 0;
 
-          char *pInput; //input string 
 	  pInput = (char *) malloc(sizeof(char) * 512);
 	  cout<<"[Application] >> ";
-	  memset(pInput, 0, sizeof(pInput));
 	  // Read input 
 	  cin.getline(pInput, 512);
 	  
@@ -209,7 +207,7 @@ void sendPicture(intptr_t sockt, char* pInput){
 
 	int iRecvLength; // length of received data
   	int iSendLength; // length of sent data
-
+	char *reply;
 	int pictureFile;	
         char *pictureBuffer;	//buffer for picture data
 	struct stat fileStats;
@@ -218,14 +216,15 @@ void sendPicture(intptr_t sockt, char* pInput){
 	//image location
 	strcpy(filename, "./");
 	strcat(filename,getFilename(pInput));
-
+	
 	int iDataLength = strlen(pInput)+1;
+	
 	
 
 	pictureFile = open(filename, O_RDONLY);
 	if (pictureFile == -1) {
 		cout << "[Application] Error: Unable to open "<<filename<<endl;
-		exit(-1);
+		return;
 	}
 
 	//get the size of the file to be sent 
@@ -236,10 +235,12 @@ void sendPicture(intptr_t sockt, char* pInput){
 		cout<<"[Application] Error: Filesize greater than 2MB!"<<endl;
 	}
 
+	pictureBuffer = (char*)malloc(fileSize);
+
 	//read file contents to picture buffer
 	if (read(pictureFile,  pictureBuffer,  fileSize) == -1){
 		cout << "[Application] Error: Unable to read file "<<filename<<endl;
-		exit(-1);
+		return;
 	}
 
 	if (g_debug) cout << "[Application] Sending: " << pInput << endl;
@@ -248,7 +249,7 @@ void sendPicture(intptr_t sockt, char* pInput){
 	  // Send command and filename
 	  if ( ( iSendLength = ap_to_nw_send( sockt, pInput, iDataLength ) ) != iDataLength ) {
 	    cout << "[Application] Error sending data to network." << endl;
-	    exit(1);
+	    return;
 	  }
 
 	  if (g_debug) cout << "[Application] Sent " << iSendLength << " byte data to network." << endl;
@@ -273,7 +274,7 @@ void sendPicture(intptr_t sockt, char* pInput){
 	  // get reply from server
 	  if ( ( iRecvLength = nw_to_ap_recv( sockt, &pReceivedData ) ) == -1 ) {
 	    cout << "[Application] Error receiving data from network." << endl;
-	    exit(1);
+	    return;
 	  }
 	  
 	  

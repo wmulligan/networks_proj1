@@ -67,7 +67,8 @@ void * ApplicationLayer( void * longPointer )
 		continue;
 	}
 	else if (isPicture(pData)==2){
-		queryPicture(iSocket,mysqlConn);
+	        cout<<"NOT IN UPDATE PICTURE"<<endl;
+		//queryPicture(iSocket,mysqlConn);
 		continue;
 	}
 
@@ -75,7 +76,7 @@ void * ApplicationLayer( void * longPointer )
     } 
    
     int iDataLength = strlen(pSendData)+1;
-
+	
     
     cout << "[Application] Sending: " << pSendData << endl;
     
@@ -185,7 +186,7 @@ void updatePicture(int sockt, MYSQL* conn, char* data){
   char query[1024*5000];
  int iSendLength;
   char* filename;
-
+	
 	//convert it to string
 	istringstream in(data);
 
@@ -211,7 +212,7 @@ void updatePicture(int sockt, MYSQL* conn, char* data){
 	
 
 
-	pictureBuffer[fileSize+1]='\0';
+	
 
 
 	memset(reply, 0, sizeof(reply));//clean reply buffer
@@ -220,11 +221,14 @@ void updatePicture(int sockt, MYSQL* conn, char* data){
 	mysql_real_escape_string(conn,chunk,pictureBuffer,fileSize);
 	int len;
 	sprintf(query, "UPDATE bodies SET data='%s',filename='%s' FROM picture WHERE id=%i",chunk,filename,selectID);
+	
   	if (mysql_query(conn, query)!=0){
 		memset(query, 0, sizeof(query));//clean query buffer
 		char *stat="INSERT INTO bodies (body_id,data,filename) VALUES (%i,'%s','%s')";
 		len=snprintf(query, sizeof(stat)+sizeof(chunk)+sizeof(selectID)+sizeof(filename), stat, selectID,chunk,filename);
-	};
+		
+		
+	}
 	
 	if (mysql_real_query(conn, query, len) !=0)
 	{
