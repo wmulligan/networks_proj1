@@ -199,7 +199,7 @@ char* processCommand(char *data, MYSQL* conn, int *userType, int* selectID){
 					//process NAME
 					//build query				
 					sprintf(query,"SELECT first_name,last_name FROM bodies WHERE id_number=%i",*selectID);
-					cout<<query<<endl;
+					
 					qReturn = mysql_query(conn, query);
 					if (qReturn != 0) {
 						 	//if failed
@@ -234,7 +234,7 @@ char* processCommand(char *data, MYSQL* conn, int *userType, int* selectID){
 					//build query				
 					sprintf(query,"SELECT location FROM bodies WHERE id_number=%i",*selectID);
 					qReturn = mysql_query(conn, query);
-					cout<<"HERE"<<reply<<endl;
+					
 					if (qReturn != 0) {
 						 	//if failed
 							cout<<"[Application] Mysql Error: "<<mysql_error(conn)<<endl;
@@ -302,6 +302,12 @@ char* processCommand(char *data, MYSQL* conn, int *userType, int* selectID){
 				//prepare success reply msg
 				reply[0]= '1';
 			}
+			else if ((words[0].compare("UPDATE") == 0 || words[0].compare("update")==0) && words.size()>2 && *userType==2){
+				memset(reply, 0, sizeof(reply));//clean reply buffer
+				reply[0]= '0';
+				strcat(reply, " Not authorized!");
+
+			}
 		}
 		
 		else if (*selectID==0){
@@ -310,7 +316,7 @@ char* processCommand(char *data, MYSQL* conn, int *userType, int* selectID){
 				reply[0]= '0';
 				strcat(reply, " Select an ID first!");
 			}
-			
+	
 		
 	return reply;
 

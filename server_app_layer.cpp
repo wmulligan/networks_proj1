@@ -17,6 +17,7 @@
 #include "server_func.cpp"
 #include "mysqlh.h"
 #include "queue.h"
+#include "global.h"
 
 using namespace std;
 
@@ -49,7 +50,7 @@ void * ApplicationLayer( void * longPointer )
       cout << "[Application] Error receiving data from network." << endl;
       break;
     }
-    cout << "[Application] Received " << iRecvLength << " byte data from network." << endl;
+    if (g_debug) cout << "[Application] Received " << iRecvLength << " byte data from network." << endl;
     cout << "[Application] Received: " << pData << endl;  
 
   
@@ -88,7 +89,7 @@ void * ApplicationLayer( void * longPointer )
       cout << "[Application] Error sending data to network." << endl;
       break;
     }
-    cout << "[Application] Sent " << iSendLength << " byte data to network." << endl;
+    if (g_debug) cout << "[Application] Sent " << iSendLength << " byte data to network." << endl;
   }
   
   dbClose(mysqlConn); //close connection to db

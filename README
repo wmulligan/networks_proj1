@@ -4,3 +4,43 @@ Authors:
 William Mulligan
 Klevis Luli
 Matthew Heon
+
+Works:
+1) Connecting Multiple Clients
+2) Closing clients and servers gracefully.
+3) Send and receiving pictures.
+4) Using MYSQL database for server.
+5) Using Go Back N.
+6) Sending Acks and using check sums.
+7) 
+
+Design Appendments:
+1) Physical Layer uses a one byte header for length to seperate packets on the TCP stream.
+2) Used Two Threads per layer.  One for send packets, one for receiving.
+3) Length field in datalink packet was removed.
+
+Contributions:
+Will Mulligan
+* Implemented the client.cpp and server.cpp
+* Implemented all the threads in all the layers
+* Implemented all the shared queues between layers and the functions to use them
+* Implemented the graceful shutdown between all the layers
+* Implemented the Network layer, joined and dissemble packets
+* Implemented the Physical layer, added length header and removed it
+* Helped get image upload working in application layer
+
+Klevis Luli
+* Implemented Application Layer
+** Client input parsing
+** Server command processing 
+** Image upload/download
+         ...
+* Implemented MySQL Database
+ 
+
+Matthew Heon
+* Implemented Datalink Layer
+** Frame receipt
+** Frame transmission
+** Frame timers & retransmission
+** ACKs and ACK handling
