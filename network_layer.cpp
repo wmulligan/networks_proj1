@@ -86,7 +86,7 @@ void * ApToDlHandler( void * longPointer )
 
       struct timespec ts;
       ts.tv_sec = 0;
-      ts.tv_nsec = 110000000;
+      ts.tv_nsec = 100000000;
       nanosleep(&ts, NULL);
 
       if (g_debug) cout << "[Network] Sending: " << pPacket->iNumber << "|" << static_cast<int>(pPacket->iEnd) << "|" << pPacket->pPayload << endl;

@@ -127,22 +127,24 @@ void * NwToPhHandler( void * longPointer )
   int iFrameLength;
   int iSendLength; // Length of send data
   int iRecvLength; // length of recieved data
-  timer_t timerId;
-  struct sigevent timerEvent;
-  struct sigaction timerAction;
   struct frameInfo *frameToSend;
   struct linkLayerSync *syncInfo = (struct linkLayerSync *)longPointer;
 
   iSocket = syncInfo->socket;
 
-  // Set up our sigevent struct (used for realtime timer for go-back-n).
-  timerEvent.sigev_notify = SIGEV_SIGNAL;
-  timerEvent.sigev_signo = SIGUSR1;
-  timerEvent.sigev_value.sival_ptr = &timerId;
-
   while ( true )
     {
       char * pPacket; // packet pointer
+
+      int toOr;
+      while(1) {
+	toOr = 0;
+	for(int h = 0; h < WINDOW_SIZE + 1; h++) {
+	  toOr = toOr | syncInfo->recentFrames[h].isValid;
+	}
+	if(toOr == 0)
+	  break;
+      }
     
       // Block until packet is received from network
       if ( ( iRecvLength = nw_to_dl_recv( iSocket, &pPacket ) ) == -1 ) {
@@ -195,7 +197,9 @@ void * NwToPhHandler( void * longPointer )
 	// End Critical Section	
 
 	// Checksum and sequence number are managed by transmitFrame
-	transmitFrame(frameToSend, syncInfo);
+	if(transmitFrame(frameToSend, syncInfo) != frameToSend->payloadLength + FRAMING_SIZE) {
+	  syncInfo->recentFrames[(syncInfo->recentFramesIndex + 1)%(WINDOW_SIZE + 1)].isValid = 0;
+	}
 
 #ifdef VERBOSE_XMIT_DEBUG
 	cout << "[DataLink] Sending second frame in series!" << endl;
@@ -239,7 +243,9 @@ void * NwToPhHandler( void * longPointer )
 	// End Critical Section	
 
 	// Checksum and sequence number are managed by transmitFrame
-	transmitFrame(frameToSend, syncInfo);
+	if(transmitFrame(frameToSend, syncInfo) != frameToSend->payloadLength + FRAMING_SIZE) {
+	  syncInfo->recentFrames[(syncInfo->recentFramesIndex + 1)%(WINDOW_SIZE + 1)].isValid = 0;
+	}
 
 	//cout << "Freeing, line 200" << endl;
 	free(frameToSend);
@@ -280,7 +286,9 @@ void * NwToPhHandler( void * longPointer )
 	// End Critical Section	
 
 	// Checksum and sequence number are managed by transmitFrame
-	transmitFrame(frameToSend, syncInfo);
+	if(transmitFrame(frameToSend, syncInfo) != frameToSend->payloadLength + FRAMING_SIZE) {
+	  syncInfo->recentFrames[(syncInfo->recentFramesIndex + 1)%(WINDOW_SIZE + 1)].isValid = 0;
+	}
 
 	//cout << "Freeing, line 236" << endl;
 	free(frameToSend);
@@ -475,6 +483,14 @@ uint8_t transmitFrame(struct frameInfo *frame, struct linkLayerSync *syncInfo)
     return 0x00;
   }
 
+  if(frame->frameType != 0x00) {
+    cout << "[DataLink] Got bad frame to transmit!" << endl;
+    return 0;
+  } else if(frame->endOfPacket > 0x01) {
+    cout << "[DataLink] Got bad frame to transmit!" << endl;
+    return 0;
+  }
+
   // Wait for window to open up
   while(syncInfo->windowSize == 0);
 
@@ -495,15 +511,15 @@ uint8_t transmitFrame(struct frameInfo *frame, struct linkLayerSync *syncInfo)
     buffer[i] = ((uint8_t *)frame)[i];
   }
 
-  buffer[0] = frame->frameType;
-  buffer[1] = (uint8_t)(frame->seqNumber >> 8);
-  buffer[2] = (uint8_t)(frame->seqNumber & 0x00FF);
-  buffer[3] = frame->endOfPacket;
-
 #ifdef VERBOSE_XMIT_DEBUG
   printf("Transmitting frame with type %X, seqeuence number %X, end of packet %X, payload of length %X\n", 
 	 frame->frameType, frame->seqNumber, frame->endOfPacket, frame->payloadLength);
 #endif
+
+  buffer[0] = frame->frameType;
+  buffer[1] = (uint8_t)(frame->seqNumber >> 8);
+  buffer[2] = (uint8_t)(frame->seqNumber & 0x00FF);
+  buffer[3] = frame->endOfPacket;
 
   // And now we can do the same with the payload
   for(i = 0; i < (frame->payloadLength); i++) {
@@ -862,7 +878,7 @@ void armTimer(uint16_t seqNumber, struct linkLayerSync *syncInfo)
     value.it_interval.tv_nsec = 0;
     timer_settime(syncInfo->timer, 0, &value, NULL);
     pthread_spin_unlock(&(syncInfo->lock));
-    cout << "[DataLink] Disarmed timer - could not find appropriate recent frame info!" << endl;
+    cout << "[DataLink] Disarmed timer!" << endl;
     return;
   }
 
@@ -880,8 +896,8 @@ void armTimer(uint16_t seqNumber, struct linkLayerSync *syncInfo)
     value.it_interval.tv_nsec = 0;
     timer_settime(syncInfo->timer, 0, &value, NULL);
     cout << "[DataLink] Disarmed timer" << endl;
-    cout << "[DataLink] Frame timed out, retransmitting!" << endl;
-    handleRetransmission(seqNumber, syncInfo);
+    cout << "[DataLink] Frame timed out before timer start, retransmitting!" << endl;
+    //handleRetransmission(seqNumber, syncInfo);
     return;
   }
 
@@ -929,3 +945,4 @@ void sigHandler(int sig, siginfo_t *si, void *uc)
     }
   }
 }
+

@@ -5,6 +5,8 @@
 #define DATALINK_LAYER_H
 
 void * DataLinkLayer( void * longPointer );
+uint8_t isFrameValid(struct frameInfo *frame);
+uint8_t sendToPhysical(struct frameInfo *frame, struct linkLayerSync *sync);
 
 // Size of the sliding window. 1 for Go Back 1, 4 for Go Back 4.
 #define WINDOW_SIZE 1
@@ -22,6 +24,7 @@ void * DataLinkLayer( void * longPointer );
 #define BAD_ACKS 7
 // Number of data frames before a bad data frame. Again n+1.
 #define BAD_DATA 5
+#define GENERATE_ERRORS
 
 // This is really verbose debug on checksum generation.
 #ifdef VERBOSE_CHECKSUM_DEBUG
