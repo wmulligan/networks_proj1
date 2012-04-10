@@ -8,13 +8,12 @@
 
 #include "server_func.h"
 
-int userType=0; //user not logged in yet
-int selectID=0;	//selected ID
+
 
 /* process command received by the client
    and return reply*/
-char* processCommand(char *data, MYSQL* conn){
-	char reply[1000];
+char* processCommand(char *data, MYSQL* conn, int *userType, int* selectID){
+	char *reply=(char*)malloc(sizeof(char)*1000);
 	char query[500];
 	int qReturn;
 	MYSQL_RES *result;
@@ -76,7 +75,7 @@ char* processCommand(char *data, MYSQL* conn){
 					reply[0]= '1';
 					sprintf(tmp, " Added. ID: %s",row[0]);
 					strcat(reply, tmp);
-					selectID=atoi(row[0]);
+					*selectID=atoi(row[0]);
 				}
 				//complete
 				mysql_free_result(result);
@@ -143,9 +142,9 @@ char* processCommand(char *data, MYSQL* conn){
 	    		result = mysql_store_result(conn);
 	    		if(mysql_num_rows(result) == 1){
 				//send success reply
-				selectID = atoi(words[1].c_str()); //update selected id
+				*selectID = atoi(words[1].c_str()); //update selected id
 				memset(tmp,0,sizeof(tmp));
-				sprintf(tmp, " Selected ID: %i",selectID);
+				sprintf(tmp, " Selected ID: %i",*selectID);
 				reply[0]= '1';
 				strcat(reply, tmp);
 	    		}
@@ -157,14 +156,14 @@ char* processCommand(char *data, MYSQL* conn){
 
 				
 		}
-		else if (selectID==1){//if an id has been selected
+		else if (*selectID==1){//if an id has been selected
 			if ((words[0].compare("QUERY") == 0 || words[0].compare("query")==0) && words.size()==2){
 				memset(query, 0, sizeof(query));//clean query buffer
 				memset(reply, 0, sizeof(reply));//clean reply buffer
 				if (words[1].compare("STATUS") == 0 || words[1].compare("status")==0) {
 					//process QUERY STATUS 
 					//build query				
-					sprintf(query,"SELECT status FROM bodies WHERE id_number=%i",selectID);
+					sprintf(query,"SELECT status FROM bodies WHERE id_number=%i",*selectID);
 					qReturn = mysql_query(conn, query);
 					if (qReturn != 0) {
 						 	//if failed
@@ -199,7 +198,8 @@ char* processCommand(char *data, MYSQL* conn){
 				else if (words[1].compare("NAME") == 0 || words[1].compare("name")==0){
 					//process NAME
 					//build query				
-					sprintf(query,"SELECT first_name,last_name FROM bodies WHERE id_number=%i",selectID);
+					sprintf(query,"SELECT first_name,last_name FROM bodies WHERE id_number=%i",*selectID);
+					cout<<query<<endl;
 					qReturn = mysql_query(conn, query);
 					if (qReturn != 0) {
 						 	//if failed
@@ -232,7 +232,7 @@ char* processCommand(char *data, MYSQL* conn){
 				else if (words[1].compare("LOCATION") == 0 || words[1].compare("location")==0){
 					//process QUERY LOCATION
 					//build query				
-					sprintf(query,"SELECT location FROM bodies WHERE id_number=%i",selectID);
+					sprintf(query,"SELECT location FROM bodies WHERE id_number=%i",*selectID);
 					qReturn = mysql_query(conn, query);
 					cout<<"HERE"<<reply<<endl;
 					if (qReturn != 0) {
@@ -268,23 +268,23 @@ char* processCommand(char *data, MYSQL* conn){
 				mysql_free_result(result);
 			}
 
-			if ((words[0].compare("UPDATE") == 0 || words[0].compare("update")==0) && words.size()>2 && userType==1){
+			if ((words[0].compare("UPDATE") == 0 || words[0].compare("update")==0) && words.size()>2 && *userType==1){
 				memset(query, 0, sizeof(query));//clean query buffer
 				memset(reply, 0, sizeof(reply));//clean reply buffer
 			
 				//if updating status
 				if  ((words[1].compare("STATUS") == 0 || words[1].compare("status")==0) && words.size()==3){
-				sprintf(query,"UPDATE bodies SET status=%i WHERE id_number=%i",atoi(words[2].c_str()),selectID);
+				sprintf(query,"UPDATE bodies SET status=%i WHERE id_number=%i",atoi(words[2].c_str()),*selectID);
 
 				}
 				//if updating name
 				else if ((words[1].compare("NAME") == 0 || words[1].compare("name")==0) && words.size()==4){
-				sprintf(query,"UPDATE bodies SET first_name='%s', last_name='%s' WHERE id_number=%i",words[2].c_str(),words[3].c_str(),selectID);
+				sprintf(query,"UPDATE bodies SET first_name='%s', last_name='%s' WHERE id_number=%i",words[2].c_str(),words[3].c_str(),*selectID);
 			
 				}
 				//if updating location
 				else if ((words[1].compare("LOCATION") == 0 || words[1].compare("location")==0) && words.size()==3){
-				sprintf(query,"UPDATE bodies SET location='%s' WHERE id_number=%i",words[2].c_str(),selectID);
+				sprintf(query,"UPDATE bodies SET location='%s' WHERE id_number=%i",words[2].c_str(),*selectID);
 
 				}
 
@@ -304,7 +304,7 @@ char* processCommand(char *data, MYSQL* conn){
 			}
 		}
 		
-		else if (selectID==0){
+		else if (*selectID==0){
 				//no id selected 
 				//send reply
 				reply[0]= '0';
@@ -332,23 +332,23 @@ int isPicture(char *data){
 	    words.push_back(word);
 	}
 	
-	if ((words[0].compare("QUERY") == 0 || words[0].compare("query")==0) && (words[1].compare("PICTURE") == 0 || words[1].compare("picture")==0)){
+
 
 		//if requesting picture
-		if (words.size()==2 ){
+		if ( (words[0].compare("QUERY") == 0 || words[0].compare("query")==0) && (words[1].compare("PICTURE") == 0 || words[1].compare("picture")==0) && words.size()==2 ){
 			picture=2;	
 		}
 		//if updating picture
-		else if  (words.size()==3){
+		else if  ((words[0].compare("UPDATE") == 0 || words[0].compare("update")==0) && (words[1].compare("PICTURE") == 0 || words[1].compare("picture")==0) && words.size()==3){
 			picture=1;
 		}
-	}
+	
 	return picture;
 
 }
 /* process log in and create account commands and 
    return reply */
-char* processLogin(char *data, MYSQL* conn){
+char* processLogin(char *data, MYSQL* conn,int *userType, int* selectID){
 	char reply[1000];	// query to be used for authentication
 	char query[500];
 	int qReturn;
@@ -388,9 +388,9 @@ char* processLogin(char *data, MYSQL* conn){
 			row = mysql_fetch_row(result);
 
 			if (strcmp(row[0],"0")==0)
-				userType=2; //query user
+				*userType=2; //query user
 			else if (strcmp(row[0],"1")==0)
-				userType=1; //admin user
+				*userType=1; //admin user
 
     		}
 		else {
@@ -421,7 +421,7 @@ char* processLogin(char *data, MYSQL* conn){
 		else {
 			reply[0]= '1';
 			strcat(reply, " Account Created.");
-			userType=2;
+			*userType=2;
 		}
  		
 		

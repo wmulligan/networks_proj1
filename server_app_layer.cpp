@@ -20,9 +20,9 @@
 
 using namespace std;
 
-void queryPicture(int sockt, MYSQL* conn);
+void queryPicture(int sockt, MYSQL* conn, int *selectID);
 
-void updatePicture(int sockt, MYSQL* conn, char* data);
+void updatePicture(int sockt, MYSQL* conn, char* data, int *selectID);
 
 void * ApplicationLayer( void * longPointer )
 {
@@ -30,6 +30,9 @@ void * ApplicationLayer( void * longPointer )
   int iRecvLength; // length of recieved data
   int iSendLength; // length of sent data
   MYSQL* mysqlConn = dbConnect(); //connect to db and save handler
+  int userType=0; //user not logged in yet
+  int selectID=0;	//selected ID
+
   char * pData;
 
   int iDataLength;
@@ -56,23 +59,23 @@ void * ApplicationLayer( void * longPointer )
     memset(pSendData, 0, sizeof(pSendData));
     if (userType==0){
 
-	strcpy(pSendData,processLogin(pData, mysqlConn));
+	strcpy(pSendData,processLogin(pData, mysqlConn, &userType, &selectID));
 	//if user has not been authenticated yet
     }
     else {
 	//user has logged in
 	
 	if (isPicture(pData)==1 && userType==1){
-		updatePicture(iSocket, mysqlConn, pData);
+		updatePicture(iSocket, mysqlConn, pData, &selectID);
 		continue;
 	}
 	else if (isPicture(pData)==2){
-	        cout<<"NOT IN UPDATE PICTURE"<<endl;
-		//queryPicture(iSocket,mysqlConn);
+	       
+		queryPicture(iSocket,mysqlConn,&selectID);
 		continue;
 	}
 
-	strcpy(pSendData,processCommand(pData,mysqlConn));
+	strcpy(pSendData,processCommand(pData,mysqlConn, &userType, &selectID));
     } 
    
     int iDataLength = strlen(pSendData)+1;
@@ -99,10 +102,10 @@ void * ApplicationLayer( void * longPointer )
 /* query picture, gets picture from db and sends
    it to client
 */
-void queryPicture(int sockt, MYSQL* conn){
+void queryPicture(int sockt, MYSQL* conn, int* selectID){
   MYSQL_RES *result;
   MYSQL_ROW row;
-  char reply[100];
+  char *reply = (char*)malloc(sizeof(char)*100);
   char*  pictureBuffer;
   char query[500];
   int qReturn;
@@ -113,12 +116,15 @@ void queryPicture(int sockt, MYSQL* conn){
 	memset(query, 0, sizeof(query));//clean query buffer
   
 	unsigned long *lengths;
-	sprintf(query, "SELECT data,filename FROM picture WHERE id=%i",selectID);
-  	mysql_query(conn, query);
+	
+	sprintf(query, "SELECT data,filename FROM pictures WHERE body_id=%i",*selectID);
+  	if (mysql_query(conn, query) !=0){
+		cout<<"[Application] Mysql Error: "<<mysql_error(conn)<<endl;
+	}
 	result = mysql_store_result(conn);
 	
 	
-	if (result && mysql_num_rows(result) == 1){
+	if (result && mysql_num_rows(result) >= 1){
 		
 	  	row = mysql_fetch_row(result);
 	  	lengths = mysql_fetch_lengths(result);
@@ -130,7 +136,7 @@ void queryPicture(int sockt, MYSQL* conn){
 
 	        memcpy(pictureBuffer, row[0], lengths[0]*sizeof(char)+1);
 
-		 int iDataLength = strlen(reply);
+		 int iDataLength = strlen(reply)+1;
     
 		    cout << "[Application] Sending: " << reply << endl;
 		    
@@ -145,7 +151,7 @@ void queryPicture(int sockt, MYSQL* conn){
 		  
 		   // Block until data is sent to network
 		    //send second reply with image data
-		    if ( ( iSendLength = ap_to_nw_send( sockt, pictureBuffer, lengths[0]+1 ) ) != lengths[0]+1 ) {
+		    if ( ( iSendLength = ap_to_nw_send( sockt, pictureBuffer, lengths[0] ) ) != lengths[0] ) {
 		      cout << "[Application] Error sending data to network." << endl;
 		      exit(1);
 		    }
@@ -178,8 +184,8 @@ void queryPicture(int sockt, MYSQL* conn){
 /* update picture, receives picture from client
    and saves it in the db
 */
-void updatePicture(int sockt, MYSQL* conn, char* data){
-  char reply[100];
+void updatePicture(int sockt, MYSQL* conn, char* data, int* selectID){
+  char *reply = (char*)malloc(sizeof(char)*100);
   char *pictureBuffer;
   char chunk[4*1000*1024];
   int fileSize;
@@ -200,7 +206,7 @@ void updatePicture(int sockt, MYSQL* conn, char* data){
 
 	strcpy(filename, (char*)words[2].c_str());
 
-	memset(pictureBuffer, 0, sizeof(pictureBuffer));
+	
 
 	// Block until data is received from network
 	    if ( ( fileSize = nw_to_ap_recv( sockt, &pictureBuffer ) ) == -1 ) {
@@ -220,26 +226,24 @@ void updatePicture(int sockt, MYSQL* conn, char* data){
   
 	mysql_real_escape_string(conn,chunk,pictureBuffer,fileSize);
 	int len;
-	sprintf(query, "UPDATE bodies SET data='%s',filename='%s' FROM picture WHERE id=%i",chunk,filename,selectID);
+	sprintf(query, "UPDATE pictures SET data='%s',filename='%s' WHERE id=%i",chunk,filename,*selectID);
 	
   	if (mysql_query(conn, query)!=0){
 		memset(query, 0, sizeof(query));//clean query buffer
-		char *stat="INSERT INTO bodies (body_id,data,filename) VALUES (%i,'%s','%s')";
-		len=snprintf(query, sizeof(stat)+sizeof(chunk)+sizeof(selectID)+sizeof(filename), stat, selectID,chunk,filename);
+		char *stat="INSERT INTO pictures (body_id,data,filename) VALUES ('%i','%s','%s')";
+		len=snprintf(query, sizeof(stat)+sizeof(chunk)+sizeof(*selectID)+sizeof(filename), stat, *selectID,chunk,filename);
 		
 		
 	}
 	
 	if (mysql_real_query(conn, query, len) !=0)
 	{
-
+		cout<<"[Application] Mysql Error: "<<mysql_error(conn)<<endl;
 		reply[0]= '0'; //failed
 		strcat(reply," Database Error.");
 
 		 int iDataLength = strlen(reply)+1;
-
-		// Block until data is sent to network
-		 //send  reply 
+		
 		    if ( ( iSendLength = ap_to_nw_send( sockt, reply, iDataLength ) ) != iDataLength ) {
 		      cout << "[Application] Error sending data to network." << endl;
 		      exit(1);

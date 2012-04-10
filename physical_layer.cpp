@@ -51,7 +51,7 @@ void *TcpToDlHandler( void *longPointer )
   intptr_t iSocket = (intptr_t) longPointer; // client socket handle
   int iRecvLength; // length of recieved data
   int iSendLength; // length of sent data
-
+  
   char * pFrame; // frame pointer
   char * pSlot;
   char * pSlotCopy;

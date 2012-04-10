@@ -145,7 +145,7 @@ void queryPicture(intptr_t sockt, char* pInput){
 	int iRecvLength; // length of recieved data
   	int iSendLength; // length of sent data  
 
-	int pictureFile;
+	FILE * pictureFile;
         char *pictureBuffer;	//buffer for picture data
 
 	  int iDataLength = strlen(pInput)+1;
@@ -172,14 +172,14 @@ void queryPicture(intptr_t sockt, char* pInput){
 	  if (g_debug) cout << "[Application] Received: " << pReceivedData << endl;
 
 	  //check if reply msg is success
-	  if (pReceivedData[0]==1){
+	  if (pReceivedData[0]=='1'){
 		  char filename[80];
 		  //path to be saved
 		  strcpy(filename, "./pictures/");
 		  strcat(filename,getServerReply(pReceivedData));
 
 		  //open picture file
-		  pictureFile = open(filename,  O_CREAT | O_WRONLY | O_APPEND, S_IRUSR | S_IWUSR | S_IXUSR | S_IRGRP | S_IROTH);
+		  pictureFile = fopen(filename, "wb");
 
 		  // Now receive picture data
 		  if ( ( iRecvLength = nw_to_ap_recv( sockt, &pictureBuffer ) ) == -1 ) {
@@ -190,9 +190,10 @@ void queryPicture(intptr_t sockt, char* pInput){
 		  if (g_debug) cout << "[Application] Received: " << pReceivedData << endl;
 
 		  //write received data to file
-		  write(pictureFile,pictureBuffer,iRecvLength);
+		  fwrite(pictureBuffer, 1, iRecvLength, pictureFile);
+		  //write(pictureFile,pictureBuffer,iRecvLength);
 		  //close image file
-		  close(pictureFile); 
+		  fclose(pictureFile); 
 	  }
 	  else {
 		cout<<"[Application] Error: "<<getServerReply(pReceivedData)<<endl;
@@ -281,7 +282,7 @@ void sendPicture(intptr_t sockt, char* pInput){
 	  if (g_debug) cout << "[Application] Received: " << iRecvLength << " byte data from network." << endl;
 	  if (g_debug) cout << "[Application] Received: " << pReceivedData << endl;
 	  //check if picture upload was successful
-	  if (pReceivedData[0] == 1)
+	  if (pReceivedData[0] == '1')
 		cout<<"[Application] Picture updated successfully."<<endl;
 	  else 
 		cout<<"[Application] Picture upload failed with message: "<<getServerReply(pReceivedData)<<endl;
