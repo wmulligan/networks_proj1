@@ -78,6 +78,9 @@ struct linkLayerSync {
   uint16_t ackSequence;
   uint8_t acksUntilBad;
   uint8_t dataUntilBad;
+  uint16_t totalFrames;
+  uint16_t totalAcks;
+  uint16_t totalBad;
   struct transmittedFrame recentFrames[WINDOW_SIZE + 1];
   uint8_t recentFramesIndex;
   pthread_spinlock_t lock; // Used for sync between send and receive threads
