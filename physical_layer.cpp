@@ -80,10 +80,10 @@ void *TcpToDlHandler( void *longPointer )
     while ( iSlotLength > 0 ) {
       iFrameLength = (unsigned char) pSlot[0];
       if (iFrameLength > iSlotLength-1) {
-		cout << "[Physical] -----------------------" << endl;
+	//	cout << "[Physical] -----------------------" << endl;
 		cout << "[Physical] Waiting for " << iFrameLength << " byte frame." << endl;
 		cout << "[Physical] Only have " << iSlotLength-1 << " byte data left." << endl;
-        cout << "[Physical] -----------------------" << endl;
+	//cout << "[Physical] -----------------------" << endl;
 		memcpy( pSlotStart, pSlot, iSlotLength );
 		break;
       }

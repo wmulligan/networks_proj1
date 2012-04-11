@@ -303,7 +303,6 @@ void * PhToNwHandler( void * longPointer )
 	cout << "[DataLink] Received out of sequence frame (expected sequence number "
 	     << syncInfo->mainSequence << ", received " << receivedFrame->seqNumber << ")." << endl;
       }
-      //cout << "Freeing, line 319" << endl;
       free(receivedFrame);
       continue;
     } else {
