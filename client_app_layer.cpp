@@ -29,7 +29,7 @@ void * ApplicationLayer( void * longPointer )
   int loggedIn = 0; //user authenticated?
   struct timeval stime, etime; //timer references
   char *pInput; //input string 
-
+  int isAdmin=0; //is user admin?
   cout << "[Application] Initializing..." << endl;
  
   // Print welcome msg
@@ -59,7 +59,7 @@ void * ApplicationLayer( void * longPointer )
 			queryPicture(iSocket, pInput);
 			continue;
 		}
-		else if (validateInput(pInput)==3){
+		else if (validateInput(pInput)==3 && isAdmin==1){
 			//client is update a picture, call picture send function
 			sendPicture(iSocket, pInput);
 			continue;
@@ -121,6 +121,7 @@ void * ApplicationLayer( void * longPointer )
 	  if (pReceivedData[0] == '1' && loginattempt){
 		cout<<"[Application] Logged in successfully. "<<endl;
 		loggedIn = 1;
+		isAdmin=atoi(replyMsg);
 		}
 	  else if (pReceivedData[0] == '1')
 		cout<<"[Application] "<<replyMsg<<endl;
