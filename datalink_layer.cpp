@@ -310,8 +310,8 @@ void * PhToNwHandler( void * longPointer )
       // Critical Section
       pthread_spin_lock(&(syncInfo->lock));
       if(receivedFrame->seqNumber + 1 > syncInfo->mainSequence) {
-	syncInfo->mainSequence = receivedFrame->seqNumber + 1; // Increment expected packet to receive
-	syncInfo->ackSequence = receivedFrame->seqNumber + 1; // Increment ACK we're expecting, as we aren't using this sequence number anymore.
+	syncInfo->mainSequence++; // Increment expected packet to receive
+	syncInfo->ackSequence++; // Increment ACK we're expecting, as we aren't using this sequence number anymore.
       }
       pthread_spin_unlock(&(syncInfo->lock));
       // End Critical Section

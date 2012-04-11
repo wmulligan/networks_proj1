@@ -243,7 +243,7 @@ void processAck(uint16_t seqNum, struct linkLayerSync *syncInfo)
   }
 
   if(seqNum != syncInfo->ackSequence) {
-    cout << "[DataLink] Got out of sequence ack (got " << seqNum << ", expecting " << syncInfo->ackSequence << ")" 
+    if(g_debug) cout << "[DataLink] Got out of sequence ack (got " << seqNum << ", expecting " << syncInfo->ackSequence << ")" 
 	 << endl;
 
     if(seqNum < syncInfo->ackSequence) {
@@ -362,7 +362,7 @@ uint8_t disassembleFrame(uint8_t length, uint8_t *bareFrame, struct frameInfo *f
       return 1;
     }
     if(bareFrame[1] != bareFrame[3] || bareFrame[2] != bareFrame[4]) {
-      cout << "[DataLink] Got Ack with bad sequence numbers (not matching)" << endl;
+      if(g_debug) cout << "[DataLink] Got Ack with bad sequence numbers (not matching)" << endl;
       return 1;
     }
 
