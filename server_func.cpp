@@ -393,10 +393,14 @@ char* processLogin(char *data, MYSQL* conn,int *userType, int* selectID){
 			//check user type
 			row = mysql_fetch_row(result);
 
-			if (strcmp(row[0],"0")==0)
+			if (strcmp(row[0],"0")==0){
 				*userType=2; //query user
-			else if (strcmp(row[0],"1")==0)
+				strcat(reply, " 0");
+			}
+			else if (strcmp(row[0],"1")==0){
 				*userType=1; //admin user
+				strcat(reply, " 1");
+			}
 
     		}
 		else {

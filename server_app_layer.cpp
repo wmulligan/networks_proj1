@@ -67,12 +67,13 @@ void * ApplicationLayer( void * longPointer )
 	//user has logged in
 	
 	if (isPicture(pData)==1 && userType==1){
+		
 		updatePicture(iSocket, mysqlConn, pData, &selectID);
 		continue;
 	}
 	else if (isPicture(pData)==2){
 	       
-		queryPicture(iSocket,mysqlConn,&selectID);
+		queryPicture(iSocket, mysqlConn,&selectID);
 		continue;
 	}
 
@@ -81,7 +82,7 @@ void * ApplicationLayer( void * longPointer )
    
     int iDataLength = strlen(pSendData)+1;
 	
-    
+
     cout << "[Application] Sending: " << pSendData << endl;
     
     // Block until data is sent to network
