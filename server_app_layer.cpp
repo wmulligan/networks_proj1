@@ -230,20 +230,22 @@ void updatePicture(int sockt, MYSQL* conn, char* data, int* selectID){
   
 	mysql_real_escape_string(conn,chunk,pictureBuffer,fileSize);
 	int len;
-	char *stat="SELECT body_id FROM pictures WHERE body_id='%i'";
-	len=snprintf(query, sizeof(stat)+sizeof(*selectID), stat, *selectID);
-	mysql_query(conn, query);
-
+	sprintf(query, "SELECT body_id FROM pictures WHERE body_id='%i'", *selectID);
+	
+	if (mysql_query(conn, query)!=0)
+		cout<<"[Application] Mysql Error: "<<mysql_error(conn)<<endl;
+	
 	result = mysql_store_result(conn);
 
+	
 	if (result && mysql_num_rows(result) >= 1) {
 		memset(query, 0, sizeof(query));//clean query buffer
-		char *stat="UPDATE pictures SET data='%s', filename='%s' WHERE body_id='%i'";
-		len=snprintf(query, sizeof(stat)+sizeof(chunk)+sizeof(*selectID)+sizeof(filename), stat, chunk, filename, *selectID);
+		char *stat2="UPDATE pictures SET data='%s', filename='%s' WHERE body_id='%i'";
+		len=snprintf(query, sizeof(stat2)+sizeof(chunk)+sizeof(*selectID)+sizeof(filename), stat2, chunk, filename, *selectID);
 	} else {
 		memset(query, 0, sizeof(query));//clean query buffer
-		char *stat="INSERT INTO pictures (body_id,data,filename) VALUES ('%i','%s','%s')";
-		len=snprintf(query, sizeof(stat)+sizeof(chunk)+sizeof(*selectID)+sizeof(filename), stat, *selectID,chunk,filename);
+		char *stat3="INSERT INTO pictures (body_id,data,filename) VALUES ('%i','%s','%s')";
+		len=snprintf(query, sizeof(stat3)+sizeof(chunk)+sizeof(*selectID)+sizeof(filename), stat3, *selectID,chunk,filename);
 		
 	}
 	

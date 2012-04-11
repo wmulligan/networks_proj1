@@ -34,9 +34,8 @@ Klevis Luli
 ** Client input parsing
 ** Server command processing 
 ** Image upload/download
-         ...
 * Implemented MySQL Database
- 
+** Application-DB interaction 
 
 Matthew Heon
 * Implemented Datalink Layer
@@ -44,3 +43,31 @@ Matthew Heon
 ** Frame transmission
 ** Frame timers & retransmission
 ** ACKs and ACK handling
+
+
+
+Commands
+./server	//runs server
+./client <ip address> <0|1>  //runs client, third flag set to 1 for debugging or 0 otherwise
+
+The following commands are not case sensitive.
+
+Commands effective after running client:
+LOGIN username password	
+CREATE ACCOUNT username password
+
+Commands effective after logging in or successfully creating an account:
+ADD firstname lastname location
+SELECT id
+
+QUERY PICTURE
+QUERY STATUS
+QUERY NAME
+QUERY LOCATION
+UPDATE STATUS <0|1>
+UPDATE PICTURE filename
+UPDATE NAME firstname lastname
+UPDATE LOCATION location
+UNKNOWN
+EXIT
+
