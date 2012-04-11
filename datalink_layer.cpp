@@ -101,7 +101,7 @@ void * DataLinkLayer( void * longPointer )
   // Create a timer for timeouts
   timer_create(CLOCK_REALTIME, &sev, &(syncInfo->timer));
   
-  cout << "[DataLink] Initializing..." << endl;
+  if(g_debug) cout << "[DataLink] Initializing..." << endl;
   
   // Create two threads for send and receiving
   pthread_create(&iNwToPhThreadId, NULL, &NwToPhHandler, (void *) syncInfo);
@@ -264,7 +264,7 @@ void * PhToNwHandler( void * longPointer )
 
     // Disassemble the frame
     if(1 == disassembleFrame(iRecvLength, pFrame, receivedFrame, syncInfo)) {
-      cout << "[DataLink] Received invalid frame, ignoring!" << endl;
+      if(g_debug) cout << "[DataLink] Received invalid frame, ignoring!" << endl;
       free(receivedFrame);
       continue;
     }
@@ -295,12 +295,12 @@ void * PhToNwHandler( void * longPointer )
     // Check sequence number. See if it's what we were expecting.
     if(receivedFrame->seqNumber != syncInfo->mainSequence) {
       if(receivedFrame->seqNumber >= syncInfo->mainSequence - (WINDOW_SIZE + 1)) {
-	cout << "Acking out of order frame with sequence number " << receivedFrame->seqNumber << endl;
+	if(g_debug) cout << "Acking out of order frame with sequence number " << receivedFrame->seqNumber << endl;
 	if(sendAck(receivedFrame->seqNumber, syncInfo) != ACK_SIZE) {
-	  cout << "[DataLink] Sending ack for sequence number " << receivedFrame->seqNumber << " failed!" << endl;
+	  if(g_debug) cout << "[DataLink] Sending ack for sequence number " << receivedFrame->seqNumber << " failed!" << endl;
 	}
       } else {
-	cout << "[DataLink] Received out of sequence frame (expected sequence number "
+	if(g_debug) cout << "[DataLink] Received out of sequence frame (expected sequence number "
 	     << syncInfo->mainSequence << ", received " << receivedFrame->seqNumber << ")." << endl;
       }
       free(receivedFrame);
@@ -320,7 +320,6 @@ void * PhToNwHandler( void * longPointer )
     // Block until ack is sent to physical
     if(sendAck(receivedFrame->seqNumber, syncInfo) != ACK_SIZE) {
       cout << "[DataLink] Sending ack for sequence number " << receivedFrame->seqNumber << " failed!" << endl;
-      //cout << "Freeing, line 335" << endl;
       free(receivedFrame);
       continue;
    }
@@ -438,12 +437,11 @@ void handleRetransmission(uint16_t failedFrameSeq, struct linkLayerSync *syncInf
   struct timeval curtime;
   
   if(syncInfo->ackSequence < failedFrameSeq) {
-    cout << "acksequence " << syncInfo->ackSequence << " failedFrameSeq " << failedFrameSeq << endl;
     cout << "[DataLink] Irreversibly lost frame with sequence number " << failedFrameSeq << endl;
     exit(1);
   }
 
-  cout << "[DataLink] Retransmitting sequence number " << failedFrameSeq << endl;
+  if(g_debug) cout << "[DataLink] Retransmitting sequence number " << failedFrameSeq << endl;
 
   for(int i = 0; i < WINDOW_SIZE + 1; i++) {
     if(syncInfo->recentFrames[i].isValid && syncInfo->recentFrames[i].frame->seqNumber == failedFrameSeq) {
@@ -456,7 +454,7 @@ void handleRetransmission(uint16_t failedFrameSeq, struct linkLayerSync *syncInf
     return;
   }
 
-  cout << "[DataLink] Retransmitting frame with sequence number " << failedFrameSeq << " now" << endl;
+  if(g_debug) cout << "[DataLink] Retransmitting frame with sequence number " << failedFrameSeq << " now" << endl;
 
   gettimeofday(&curtime, NULL);
 
@@ -480,7 +478,7 @@ void handleRetransmissionNoRearm(uint16_t failedFrameSeq, struct linkLayerSync *
   int index = WINDOW_SIZE + 2;
   struct timeval curtime;
 
-  cout << "[DataLink] Retransmitting sequence number " << failedFrameSeq << endl;
+  if(g_debug) cout << "[DataLink] Retransmitting sequence number " << failedFrameSeq << endl;
 
   for(int i = 0; i < WINDOW_SIZE + 1; i++) {
     if(syncInfo->recentFrames[i].isValid && syncInfo->recentFrames[i].frame->seqNumber == failedFrameSeq) {
@@ -493,7 +491,7 @@ void handleRetransmissionNoRearm(uint16_t failedFrameSeq, struct linkLayerSync *
     return;
   }
 
-  cout << "[DataLink] Retransmitting frame with sequence number " << failedFrameSeq << " now" << endl;
+  if(g_debug) cout << "[DataLink] Retransmitting frame with sequence number " << failedFrameSeq << " now" << endl;
 
   gettimeofday(&curtime, NULL);
 
@@ -514,7 +512,7 @@ void sigHandler(int sig, siginfo_t *si, void *uc)
   struct linkLayerSync *syncInfo;
   int lowestSequence = 0;
 
-  cout << "[DataLink] frame timed out" << endl;
+  if(g_debug) cout << "[DataLink] frame timed out" << endl;
 
   if(sig == SIGUSR1) {
     syncInfo = syncOne;

@@ -82,7 +82,8 @@ uint8_t sendToPhysical(struct frameInfo *frame, struct linkLayerSync *syncInfo)
 
 #ifdef GENERATE_ERRORS
   if(syncInfo->dataUntilBad == BAD_DATA) {
-    cout << "[DataLink] Altering checksum for bad frame!" << endl;
+    if(g_debug)
+      cout << "[DataLink] Altering checksum for bad frame!" << endl;
     buffer[(FRAMING_SIZE + frame->payloadLength) - 1] += 1; // Bad checksum
     pthread_spin_lock(&(syncInfo->lock));
     syncInfo->totalBad++;
@@ -139,7 +140,7 @@ uint8_t sendAck(uint16_t seqNumber, struct linkLayerSync *syncInfo)
 
 #ifdef GENERATE_ERRORS
   if(syncInfo->acksUntilBad == BAD_ACKS) {
-    cout << "[DataLink] Altering checksum for bad frame!" << endl;
+    if(g_debug) cout << "[DataLink] Altering checksum for bad frame!" << endl;
     ack[4] += 1;
     pthread_spin_lock(&(syncInfo->lock));
     syncInfo->totalBad++;
@@ -186,7 +187,7 @@ uint8_t sendData(struct frameInfo *frame, struct linkLayerSync *syncInfo)
   // Spin until our window is open
   while(syncInfo->windowSize == 0);
 
-  cout << "[DataLink] Current window size is " << syncInfo->windowSize << endl;
+  if(g_debug) cout << "[DataLink] Current window size is " << syncInfo->windowSize << endl;
 
   // Decrement window size
   pthread_spin_lock(&(syncInfo->lock));
@@ -196,7 +197,7 @@ uint8_t sendData(struct frameInfo *frame, struct linkLayerSync *syncInfo)
   // Set sequence number
   seqNum = getNewSequence(syncInfo);
   frame->seqNumber = seqNum;
-  cout << "[DataLink] Got sequence number " << seqNum << " for frame" << endl;
+  if(g_debug) cout << "[DataLink] Got sequence number " << seqNum << " for frame" << endl;
 
   // Transmit the frame
   sendToPhysical(frame, syncInfo);
@@ -257,14 +258,14 @@ void processAck(uint16_t seqNum, struct linkLayerSync *syncInfo)
       // Increase our window size
       pthread_spin_lock(&(syncInfo->lock));
       if(syncInfo->windowSize <= WINDOW_SIZE)
-	syncInfo->windowSize++;
+	//syncInfo->windowSize++;
       pthread_spin_unlock(&(syncInfo->lock));  
     }
    
     return;
   }
 
-  cout << "[DataLink] Got ACK for sequence number " << seqNum << endl;
+  if(g_debug) cout << "[DataLink] Got ACK for sequence number " << seqNum << endl;
 
   clearFrameInfo(seqNum, syncInfo);
 
@@ -334,7 +335,7 @@ void clearFrameInfo(uint16_t seqNum, struct linkLayerSync *syncInfo)
     return;
   }
 
-  cout << "[DataLink] Freeing frame info structure" << endl;
+  if(g_debug) cout << "[DataLink] Freeing frame info structure" << endl;
 
   pthread_spin_lock(&(syncInfo->lock));
   syncInfo->recentFrames[index].isValid = 0;
@@ -368,7 +369,7 @@ uint8_t disassembleFrame(uint8_t length, uint8_t *bareFrame, struct frameInfo *f
     frame->frameType = 1;
     frame->seqNumber = ((uint16_t)(bareFrame[1]) << 8) + bareFrame[2];
 
-    cout << "[DataLink] Received ACK with sequence number " << frame->seqNumber << endl;
+    if(g_debug) cout << "[DataLink] Received ACK with sequence number " << frame->seqNumber << endl;
 
     return 0;
   }
@@ -429,7 +430,7 @@ void disarmTimer(struct linkLayerSync *syncInfo)
   syncInfo->timerRunning = 0;
   pthread_spin_unlock(&(syncInfo->lock));
   
-  cout << "[DataLink] Disarmed timer" << endl;
+  if(g_debug) cout << "[DataLink] Disarmed timer" << endl;
 }
 
 void armTimer(uint16_t seqNum, struct linkLayerSync *syncInfo)
@@ -478,7 +479,7 @@ void armTimer(uint16_t seqNum, struct linkLayerSync *syncInfo)
   value.it_interval.tv_sec = 0;
   value.it_interval.tv_nsec = 0;
 
-  cout << "[DataLink] Armed timer with time of " << value.it_value.tv_nsec << " nseconds for frame " 
+  if(g_debug) cout << "[DataLink] Armed timer with time of " << value.it_value.tv_nsec << " nseconds for frame " 
        << syncInfo->recentFrames[index].frame->seqNumber << endl;
 
   pthread_spin_lock(&(syncInfo->lock));
