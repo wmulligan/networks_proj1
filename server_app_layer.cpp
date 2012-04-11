@@ -195,7 +195,6 @@ void updatePicture(int sockt, MYSQL* conn, char* data, int* selectID){
   char query[1024*5000];
  int iSendLength;
   char* filename;
-  MYSQL_RES *result;
 	
 	//convert it to string
 	istringstream in(data);
@@ -210,6 +209,7 @@ void updatePicture(int sockt, MYSQL* conn, char* data, int* selectID){
 
 	strcpy(filename, (char*)words[2].c_str());
 
+	
 
 	// Block until data is received from network
 	    if ( ( fileSize = nw_to_ap_recv( sockt, &pictureBuffer ) ) == -1 ) {
@@ -220,29 +220,25 @@ void updatePicture(int sockt, MYSQL* conn, char* data, int* selectID){
 	    cout << "[Application] Received: " << filename << endl;
 	
 
+
+	
+
+
 	memset(reply, 0, sizeof(reply));//clean reply buffer
 	memset(query, 0, sizeof(query));//clean query buffer
   
 	mysql_real_escape_string(conn,chunk,pictureBuffer,fileSize);
 	int len;
-	sprintf(query, "SELECT body_id FROM pictures WHERE body_id='%i'", *selectID);
+	sprintf(query, "DELETE FROM pictures WHERE body_id=%i",*selectID);
+	mysql_query(conn, query);
 	
-	if (mysql_query(conn, query)!=0)
-		cout<<"[Application] Mysql Error: "<<mysql_error(conn)<<endl;
-	
-	result = mysql_store_result(conn);
-    free(pictureBuffer);
-	
-	if (result && mysql_num_rows(result) >= 1) {
-		memset(query, 0, sizeof(query));//clean query buffer
-		char *stat2="UPDATE pictures SET data='%s', filename='%s' WHERE body_id='%i'";
-		len=snprintf(query, sizeof(stat2)+sizeof(chunk)+sizeof(*selectID)+sizeof(filename), stat2, chunk, filename, *selectID);
-	} else {
-		memset(query, 0, sizeof(query));//clean query buffer
-		char *stat3="INSERT INTO pictures (body_id,data,filename) VALUES ('%i','%s','%s')";
-		len=snprintf(query, sizeof(stat3)+sizeof(chunk)+sizeof(*selectID)+sizeof(filename), stat3, *selectID,chunk,filename);
+  	
+	memset(query, 0, sizeof(query));//clean query buffer
+	char *stat="INSERT INTO pictures (body_id,data,filename) VALUES ('%i','%s','%s')";
+	len=snprintf(query, sizeof(stat)+sizeof(chunk)+sizeof(*selectID)+sizeof(filename), stat, *selectID,chunk,filename);
 		
-	}
+		
+	
 	
 	if (mysql_real_query(conn, query, len) !=0)
 	{
@@ -280,9 +276,8 @@ void updatePicture(int sockt, MYSQL* conn, char* data, int* selectID){
 		      cout << "[Application] Sent " << iSendLength << " byte data to network." << endl;
 	
 	}
-	
-	mysql_free_result(result);
 
 }
+
 
 

@@ -56,6 +56,12 @@ Commands effective after running client:
 LOGIN username password	
 CREATE ACCOUNT username password
 
+authorized user account:
+klevis 123456
+
+unauthorized account:
+test test
+
 Commands effective after logging in or successfully creating an account:
 ADD firstname lastname location
 SELECT id
