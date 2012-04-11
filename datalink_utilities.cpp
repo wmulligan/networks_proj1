@@ -145,6 +145,7 @@ uint8_t sendAck(uint16_t seqNumber, struct linkLayerSync *syncInfo)
   // Block until frame is sent to physical
   if((toReturn = dl_to_ph_send(syncInfo->socket, ack, ACK_SIZE) ) != ACK_SIZE) {
     cout << "[DataLink] Error sending ACK to physical." << endl;
+	pthread_exit(NULL);
   }
   if (g_debug) cout << "[DataLink] Sent ACK frame to physical with sequence number " << seqNumber << endl;
 
@@ -371,6 +372,7 @@ uint8_t disassembleFrame(uint8_t length, uint8_t *bareFrame, struct frameInfo *f
   for(int i = (FRAMING_SIZE - 2); i < ((FRAMING_SIZE - 2) + frame->payloadLength); i++) {
     frame->payload[i-(FRAMING_SIZE - 2)] = bareFrame[i];
   }
+  free(bareFrame);
 
   return toReturn;
 }

@@ -89,7 +89,7 @@ void * ApToDlHandler( void * longPointer )
       ts.tv_nsec = 100000000;
       nanosleep(&ts, NULL);
 
-      if (g_debug) cout << "[Network] Sending: " << pPacket->iNumber << "|" << static_cast<int>(pPacket->iEnd) << "|" << pPacket->pPayload << endl;
+      //if (g_debug) cout << "[Network] Sending: " << pPacket->iNumber << "|" << static_cast<int>(pPacket->iEnd) << "|" << pPacket->pPayload << endl;
 
       // Block until packet is sent to datalink
       if ( ( iSendLength = nw_to_dl_send( iSocket, (char *) pPacket, iPacketLength ) ) != iPacketLength ) {
@@ -128,7 +128,7 @@ void * DlToApHandler( void * longPointer )
         pthread_exit(NULL);
       }
       if (g_debug) cout << "[Network] Received " << iRecvLength << " byte packet from datalink." << endl;
-      if (g_debug) cout << "[Network] Received: " << pPacket->iNumber << "|" << static_cast<int>(pPacket->iEnd) << "|" << pPacket->pPayload << endl;
+      //if (g_debug) cout << "[Network] Received: " << pPacket->iNumber << "|" << static_cast<int>(pPacket->iEnd) << "|" << pPacket->pPayload << endl;
 
       // Allocate more memory
       iDataLength += (iRecvLength - PACKET_HDR_LENGTH);

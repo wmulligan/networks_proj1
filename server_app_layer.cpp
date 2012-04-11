@@ -164,8 +164,9 @@ void queryPicture(int sockt, MYSQL* conn, int* selectID){
 		reply[0]= '0'; //failed
 		strcat(reply," No picture for ID.");
 
-		 int iDataLength = strlen(reply);
+		 int iDataLength = strlen(reply) + 1;
 
+		cout << "[Application] Sending: " << reply << endl;
 		// Block until data is sent to network
 		 //send  reply 
 		    if ( ( iSendLength = ap_to_nw_send( sockt, reply, iDataLength ) ) != iDataLength ) {

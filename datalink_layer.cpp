@@ -365,14 +365,12 @@ void * PhToNwHandler( void * longPointer )
     // Block until packet is sent to network
     if ( ( iSendLength = dl_to_nw_send( iSocket, pPacket, iPacketLength ) ) != iPacketLength ) {
       cout << "[DataLink] Error sending packet to network." << endl;
-      free(receivedFrame);
-      free(pPacket);
-      continue;
+	  pthread_exit(NULL);
     }
 
     free(receivedFrame);
     //free(pPacket);
-    cout << "[DataLink] Sent " << iSendLength << " byte packet to network." << endl;
+    if (g_debug) cout << "[DataLink] Sent " << iSendLength << " byte packet to network." << endl;
   }
 }
 
