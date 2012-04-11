@@ -437,6 +437,12 @@ void handleRetransmission(uint16_t failedFrameSeq, struct linkLayerSync *syncInf
   int index = WINDOW_SIZE + 2;
   struct timeval curtime;
   
+  if(syncInfo->ackSequence < failedFrameSeq) {
+    cout << "acksequence " << syncInfo->ackSequence << " failedFrameSeq " << failedFrameSeq << endl;
+    cout << "[DataLink] Irreversibly lost frame with sequence number " << failedFrameSeq << endl;
+    exit(1);
+  }
+
   cout << "[DataLink] Retransmitting sequence number " << failedFrameSeq << endl;
 
   for(int i = 0; i < WINDOW_SIZE + 1; i++) {
@@ -455,8 +461,8 @@ void handleRetransmission(uint16_t failedFrameSeq, struct linkLayerSync *syncInf
   gettimeofday(&curtime, NULL);
 
   // Reset frame transmit time
-  syncInfo->recentFrames[i].transmitTime.tv_sec = curtime.tv_sec;
-  syncInfo->recentFrames[i].transmitTime.tv_usec = curtime.tv_usec;
+  syncInfo->recentFrames[index].transmitTime.tv_sec = curtime.tv_sec;
+  syncInfo->recentFrames[index].transmitTime.tv_usec = curtime.tv_usec;
 
   // Retransmit the failed frame
   sendToPhysical(syncInfo->recentFrames[index].frame, syncInfo);
@@ -473,7 +479,7 @@ void handleRetransmissionNoRearm(uint16_t failedFrameSeq, struct linkLayerSync *
 {
   int index = WINDOW_SIZE + 2;
   struct timeval curtime;
-  
+
   cout << "[DataLink] Retransmitting sequence number " << failedFrameSeq << endl;
 
   for(int i = 0; i < WINDOW_SIZE + 1; i++) {
@@ -492,8 +498,8 @@ void handleRetransmissionNoRearm(uint16_t failedFrameSeq, struct linkLayerSync *
   gettimeofday(&curtime, NULL);
 
   // Reset frame transmit time
-  syncInfo->recentFrames[i].transmitTime.tv_sec = curtime.tv_sec;
-  syncInfo->recentFrames[i].transmitTime.tv_usec = curtime.tv_usec;
+  syncInfo->recentFrames[index].transmitTime.tv_sec = curtime.tv_sec;
+  syncInfo->recentFrames[index].transmitTime.tv_usec = curtime.tv_usec;
 
   // Retransmit the failed frame
   sendToPhysical(syncInfo->recentFrames[index].frame, syncInfo);

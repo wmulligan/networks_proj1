@@ -186,6 +186,8 @@ uint8_t sendData(struct frameInfo *frame, struct linkLayerSync *syncInfo)
   // Spin until our window is open
   while(syncInfo->windowSize == 0);
 
+  cout << "[DataLink] Current window size is " << syncInfo->windowSize << endl;
+
   // Decrement window size
   pthread_spin_lock(&(syncInfo->lock));
   syncInfo->windowSize--;
