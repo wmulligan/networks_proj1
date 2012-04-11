@@ -84,6 +84,9 @@ uint8_t sendToPhysical(struct frameInfo *frame, struct linkLayerSync *syncInfo)
   if(syncInfo->dataUntilBad == BAD_DATA) {
     cout << "[DataLink] Altering checksum for bad frame!" << endl;
     buffer[(FRAMING_SIZE + frame->payloadLength) - 1] += 1; // Bad checksum
+    pthread_spin_lock(&(syncInfo->lock));
+    syncInfo->totalBad++;
+    pthread_spin_unlock(&(syncInfo->lock));    
   }
 
   // Critical Section
@@ -104,6 +107,10 @@ uint8_t sendToPhysical(struct frameInfo *frame, struct linkLayerSync *syncInfo)
   printf("\n");
 #endif
   
+  pthread_spin_lock(&(syncInfo->lock));
+  syncInfo->totalFrames++;
+  pthread_spin_unlock(&(syncInfo->lock));    
+
   // Block until frame is sent to physical
   if((toReturn = dl_to_ph_send(syncInfo->socket, buffer, (FRAMING_SIZE + frame->payloadLength)) ) != (FRAMING_SIZE + frame->payloadLength)) {
     cout << "[DataLink] Error sending frame to physical." << endl;
@@ -126,10 +133,17 @@ uint8_t sendAck(uint16_t seqNumber, struct linkLayerSync *syncInfo)
   ack[3] = ack[1]; // FCS field matches sequence number
   ack[4] = ack[2];
 
+  pthread_spin_lock(&(syncInfo->lock));
+  syncInfo->totalAcks++;
+  pthread_spin_unlock(&(syncInfo->lock));    
+
 #ifdef GENERATE_ERRORS
   if(syncInfo->acksUntilBad == BAD_ACKS) {
     cout << "[DataLink] Altering checksum for bad frame!" << endl;
     ack[4] += 1;
+    pthread_spin_lock(&(syncInfo->lock));
+    syncInfo->totalBad++;
+    pthread_spin_unlock(&(syncInfo->lock));    
   }
 
   // Critical Section
@@ -240,7 +254,8 @@ void processAck(uint16_t seqNum, struct linkLayerSync *syncInfo)
 
       // Increase our window size
       pthread_spin_lock(&(syncInfo->lock));
-      syncInfo->windowSize++;
+      if(syncInfo->windowSize <= WINDOW_SIZE)
+	syncInfo->windowSize++;
       pthread_spin_unlock(&(syncInfo->lock));  
     }
    

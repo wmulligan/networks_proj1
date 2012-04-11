@@ -89,6 +89,9 @@ void * DataLinkLayer( void * longPointer )
   syncInfo->acksUntilBad = 0;
   syncInfo->dataUntilBad = 0;
   syncInfo->timerRunning = 0;
+  syncInfo->totalFrames = 0;
+  syncInfo->totalAcks = 0;
+  syncInfo->totalBad = 0;
   for(int i = 0; i < WINDOW_SIZE + 1; i++) {
     syncInfo->recentFrames[i].isValid = 0;
   }
@@ -107,8 +110,10 @@ void * DataLinkLayer( void * longPointer )
   pthread_join(iPhToNwThreadId, NULL);
   
   // Free the sync structure
-  //cout << "Freeing, line 86" << endl;
   //free(syncInfo);
+
+  cout << "[DataLink] Sent " << syncInfo->totalFrames << " frames, " << syncInfo->totalAcks << " acks, " 
+       << syncInfo->totalBad << " bad frames and acks." << endl;
 
   signalAvail[sigNo] = 1;
 
@@ -298,7 +303,6 @@ void * PhToNwHandler( void * longPointer )
 	cout << "[DataLink] Received out of sequence frame (expected sequence number "
 	     << syncInfo->mainSequence << ", received " << receivedFrame->seqNumber << ")." << endl;
       }
-      //cout << "Freeing, line 319" << endl;
       free(receivedFrame);
       continue;
     } else {
