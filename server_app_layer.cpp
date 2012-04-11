@@ -210,7 +210,6 @@ void updatePicture(int sockt, MYSQL* conn, char* data, int* selectID){
 
 	strcpy(filename, (char*)words[2].c_str());
 
-	
 
 	// Block until data is received from network
 	    if ( ( fileSize = nw_to_ap_recv( sockt, &pictureBuffer ) ) == -1 ) {
@@ -220,10 +219,6 @@ void updatePicture(int sockt, MYSQL* conn, char* data, int* selectID){
 	    cout << "[Application] Received " << fileSize << " byte data from network." << endl;
 	    cout << "[Application] Received: " << filename << endl;
 	
-
-
-	
-
 
 	memset(reply, 0, sizeof(reply));//clean reply buffer
 	memset(query, 0, sizeof(query));//clean query buffer
@@ -236,7 +231,7 @@ void updatePicture(int sockt, MYSQL* conn, char* data, int* selectID){
 		cout<<"[Application] Mysql Error: "<<mysql_error(conn)<<endl;
 	
 	result = mysql_store_result(conn);
-
+    free(pictureBuffer);
 	
 	if (result && mysql_num_rows(result) >= 1) {
 		memset(query, 0, sizeof(query));//clean query buffer
@@ -285,6 +280,8 @@ void updatePicture(int sockt, MYSQL* conn, char* data, int* selectID){
 		      cout << "[Application] Sent " << iSendLength << " byte data to network." << endl;
 	
 	}
+	
+	mysql_free_result(result);
 
 }
 
