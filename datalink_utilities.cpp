@@ -228,6 +228,21 @@ void processAck(uint16_t seqNum, struct linkLayerSync *syncInfo)
   if(seqNum != syncInfo->ackSequence) {
     cout << "[DataLink] Got out of sequence ack (got " << seqNum << ", expecting " << syncInfo->ackSequence << ")" 
 	 << endl;
+
+    if(seqNum < syncInfo->ackSequence) {
+      clearFrameInfo(seqNum, syncInfo);
+      
+      // Disarm the timer
+      disarmTimer(syncInfo);
+      // Arm with next frame
+      if(seqNum + 1 < syncInfo->mainSequence)
+	armTimer(seqNum + 1, syncInfo);      
+
+      // Increase our window size
+      pthread_spin_lock(&(syncInfo->lock));
+      syncInfo->windowSize++;
+      pthread_spin_unlock(&(syncInfo->lock));  
+    }
    
     return;
   }
