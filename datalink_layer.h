@@ -7,6 +7,15 @@
 void * DataLinkLayer( void * longPointer );
 uint8_t isFrameValid(struct frameInfo *frame);
 uint8_t sendToPhysical(struct frameInfo *frame, struct linkLayerSync *sync);
+uint16_t getNewSequence(struct linkLayerSync *syncInfo);
+uint8_t sendData(struct frameInfo *frame, struct linkLayerSync *syncInfo);
+uint8_t disassembleFrame(uint8_t length, uint8_t *bareFrame, struct frameInfo *frame, struct linkLayerSync *syncInfo);
+void clearFrameInfo(uint16_t seqNum, struct linkLayerSync *syncInfo);
+void storeFrameInfo(struct frameInfo *frame, struct linkLayerSync *syncInfo);
+void processAck(uint16_t seqNum, struct linkLayerSync *syncInfo);
+void disarmTimer(struct linkLayerSync *syncInfo);
+void armTimer(uint16_t seqNum, struct linkLayerSync *syncInfo);
+uint8_t sendAck(uint16_t seqNumber, struct linkLayerSync *syncInfo);
 
 // Size of the sliding window. 1 for Go Back 1, 4 for Go Back 4.
 #define WINDOW_SIZE 1
@@ -62,6 +71,7 @@ struct transmittedFrame {
 // Syncs the send and receive threads for a single physical layer socket
 struct linkLayerSync {
   timer_t timer;
+  int timerRunning;
   int socket;
   uint8_t windowSize;
   uint16_t mainSequence;

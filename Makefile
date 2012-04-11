@@ -1,11 +1,10 @@
 all: server client
  
-server: server.o physical_layer.o datalink_layer.o network_layer.o server_app_layer.o queue.o mysql.o global.o
-	g++ -pthread -I/usr/local/mysql-current/include -L/usr/local/mysql-current/lib/mysql -lmysqlclient -ldl -o server server.o physical_layer.o datalink_layer.o network_layer.o -lrt server_app_layer.o queue.o mysql.o global.o
+server: server.o physical_layer.o datalink_layer.o network_layer.o server_app_layer.o queue.o mysql.o global.o datalink_utilities.o
+	g++ -pthread -I/usr/local/mysql-current/include -L/usr/local/mysql-current/lib/mysql -lmysqlclient -ldl -o server server.o physical_layer.o datalink_layer.o network_layer.o -lrt server_app_layer.o queue.o mysql.o global.o datalink_utilities.o
 
-
-client: client.o physical_layer.o datalink_layer.o network_layer.o client_app_layer.o queue.o client_func.o global.o
-	g++ -pthread -o client client.o physical_layer.o datalink_layer.o network_layer.o -lrt client_app_layer.o queue.o client_func.o global.o
+client: client.o physical_layer.o datalink_layer.o network_layer.o client_app_layer.o queue.o client_func.o global.o datalink_utilities.o
+	g++ -pthread -o client client.o physical_layer.o datalink_layer.o network_layer.o -lrt client_app_layer.o queue.o client_func.o global.o datalink_utilities.o
 
 global.o: global.cpp
 	g++ -c global.cpp
@@ -28,8 +27,11 @@ server_func.o: server_func.cpp server_func.h
 physical_layer.o: physical_layer.cpp physical_layer.h
 	g++ -fpermissive -c physical_layer.cpp
 
-datalink_layer.o: datalink_layer.cpp datalink_layer.h
+datalink_layer.o: datalink_layer.cpp datalink_utilities.cpp datalink_layer.h
 	g++ -fpermissive -c datalink_layer.cpp
+
+datalink_utilities.o: datalink_utilities.o datalink_layer.h
+	g++ -fpermissive -c datalink_utilities.cpp
 
 network_layer.o: network_layer.cpp network_layer.h
 	g++ -fpermissive -c network_layer.cpp
