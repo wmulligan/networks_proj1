@@ -27,6 +27,7 @@ void * NwToPhHandler( void * longPointer );
 void * PhToNwHandler( void * longPointer );
 uint16_t generateFCS(uint8_t *frame, uint8_t length);
 void handleRetransmission(uint16_t failedFrameSeq, struct linkLayerSync *syncInfo);
+void handleRetransmissionNoRearm(uint16_t failedFrameSeq, struct linkLayerSync *syncInfo);
 void sigHandler(int sig, siginfo_t *si, void *uc);
 
 // Globals.
@@ -519,6 +520,44 @@ void handleRetransmission(uint16_t failedFrameSeq, struct linkLayerSync *syncInf
 
   // Rearm the timer for the frame
   armTimer(failedFrameSeq, syncInfo);
+
+  if(failedFrameSeq + 1 < syncInfo->mainSequence) {
+    handleRetransmissionNoRearm(failedFrameSeq + 1, syncInfo);
+  }
+}
+
+void handleRetransmissionNoRearm(uint16_t failedFrameSeq, struct linkLayerSync *syncInfo)
+{
+  int index = WINDOW_SIZE + 2;
+  struct timeval curtime;
+  
+  cout << "[DataLink] Retransmitting sequence number " << failedFrameSeq << endl;
+
+  for(int i = 0; i < WINDOW_SIZE + 1; i++) {
+    if(syncInfo->recentFrames[i].isValid && syncInfo->recentFrames[i].frame->seqNumber == failedFrameSeq) {
+      index = i;
+      break;
+    }
+  }
+
+  if(index == WINDOW_SIZE + 2) {
+    return;
+  }
+
+  cout << "[DataLink] Retransmitting frame with sequence number " << failedFrameSeq << " now" << endl;
+
+  gettimeofday(&curtime, NULL);
+
+  // Reset frame transmit time
+  syncInfo->recentFrames[i].transmitTime.tv_sec = curtime.tv_sec;
+  syncInfo->recentFrames[i].transmitTime.tv_usec = curtime.tv_usec;
+
+  // Retransmit the failed frame
+  sendToPhysical(syncInfo->recentFrames[index].frame, syncInfo);
+
+  if(failedFrameSeq + 1 < syncInfo->mainSequence) {
+    handleRetransmissionNoRearm(failedFrameSeq + 1, syncInfo);
+  }
 }
 
 void sigHandler(int sig, siginfo_t *si, void *uc)

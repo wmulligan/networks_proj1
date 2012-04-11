@@ -18,7 +18,7 @@ void armTimer(uint16_t seqNum, struct linkLayerSync *syncInfo);
 uint8_t sendAck(uint16_t seqNumber, struct linkLayerSync *syncInfo);
 
 // Size of the sliding window. 1 for Go Back 1, 4 for Go Back 4.
-#define WINDOW_SIZE 1
+#define WINDOW_SIZE 4
 // Maximum size of an acceptable payload, in bytes
 #define MAX_PAYLOAD_SIZE 150
 // Maximum size of an acceptable frame, in bytes
