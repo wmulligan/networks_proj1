@@ -132,6 +132,7 @@ void * NwToPhHandler( void * longPointer )
     {
       char * pPacket; // packet pointer
 
+#ifdef DELAY
       int toOr;
       while(1) {
 	toOr = 0;
@@ -141,6 +142,7 @@ void * NwToPhHandler( void * longPointer )
 	if(toOr == 0)
 	  break;
       }
+#endif
     
       // Block until packet is received from network
       if ( ( iRecvLength = nw_to_dl_recv( iSocket, &pPacket ) ) == -1 ) {
@@ -176,12 +178,15 @@ void * NwToPhHandler( void * longPointer )
 	cout << "[DataLink] Sending second frame in series!" << endl;
 #endif
 
+#ifdef DELAY
 	struct timespec ts;
 	ts.tv_sec = 0;
 	ts.tv_nsec = 125000000;
 	nanosleep(&ts, NULL);
+#endif
 
 	frameToSend->frameType = 0x00;
+	frameToSend->payloadLength = iRecvLength - MAX_PAYLOAD_SIZE;
 	frameToSend->endOfPacket = 0x01;
 	
 	// Copy in payload

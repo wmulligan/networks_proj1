@@ -84,10 +84,12 @@ void * ApToDlHandler( void * longPointer )
       memcpy( pPacket->pPayload, pData, ((iRecvLength > PACKET_SIZE) ? PACKET_SIZE : iRecvLength) );
       iPacketLength = PACKET_HDR_LENGTH + ((iRecvLength > PACKET_SIZE) ? PACKET_SIZE : iRecvLength);
 
+#ifdef DELAY
       struct timespec ts;
       ts.tv_sec = 0;
       ts.tv_nsec = 100000000;
       nanosleep(&ts, NULL);
+#endif
 
       if (g_debug) cout << "[Network] Sending: " << pPacket->iNumber << "|" << static_cast<int>(pPacket->iEnd) << "|" << pPacket->pPayload << endl;
 
