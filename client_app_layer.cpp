@@ -145,12 +145,17 @@ void queryPicture(intptr_t sockt, char* pInput){
 	
 	int iRecvLength; // length of recieved data
   	int iSendLength; // length of sent data  
+	struct timeval stime, etime; //timer references
 
 	FILE * pictureFile;
         char *pictureBuffer;	//buffer for picture data
 
 	  int iDataLength = strlen(pInput)+1;
 	  
+	  //send time
+          gettimeofday(&stime,NULL);
+	  double t1=stime.tv_sec+(stime.tv_usec/1000000.0);   
+
 	  if (g_debug) cout << "[Application] Sending: " << pInput << endl;
 	  
 	  // Block until data is sent to network
@@ -159,7 +164,7 @@ void queryPicture(intptr_t sockt, char* pInput){
 	    cout << "[Application] Error sending data to network." << endl;
 	    exit(1);
 	  }
-	  cout << "[Application] Sent " << iSendLength << " byte data to network." << endl;
+	  if(g_debug) cout << "[Application] Sent " << iSendLength << " byte data to network." << endl;
 	  
 	  char * pReceivedData;
 	  
@@ -171,6 +176,12 @@ void queryPicture(intptr_t sockt, char* pInput){
 	  }
 	  if (g_debug) cout << "[Application] Received " << iRecvLength << " byte data from network." << endl;
 	  if (g_debug) cout << "[Application] Received: " << pReceivedData << endl;
+
+	  //receive time
+          gettimeofday(&etime,NULL);
+	  double t2=etime.tv_sec+(etime.tv_usec/1000000.0);   
+
+	  printf("Round Trip Time: %.6lf seconds\n",t2-t1);
 
 	  //check if reply msg is success
 	  if (pReceivedData[0]=='1'){
@@ -188,7 +199,7 @@ void queryPicture(intptr_t sockt, char* pInput){
 		    exit(1);
 		  }
 		  if (g_debug) cout << "[Application] Received " << iRecvLength << " byte data from network." << endl;
-		  if (g_debug) cout << "[Application] Received: " << pReceivedData << endl;
+		  cout << "[Application] Received: " << pReceivedData << endl;
 
 		  //write received data to file
 		  fwrite(pictureBuffer, 1, iRecvLength, pictureFile);
@@ -213,6 +224,7 @@ void sendPicture(intptr_t sockt, char* pInput){
 	int pictureFile;	
         char *pictureBuffer;	//buffer for picture data
 	struct stat fileStats;
+	struct timeval stime, etime; //timer references
 
 	char filename[80];
 	//image location
@@ -256,6 +268,11 @@ void sendPicture(intptr_t sockt, char* pInput){
 
 	  if (g_debug) cout << "[Application] Sent " << iSendLength << " byte data to network." << endl;
 
+
+	  //send time
+          gettimeofday(&stime,NULL);
+	  double t1=stime.tv_sec+(stime.tv_usec/1000000.0);   
+
 	
 	  // Block until data is sent to network
 	  // Send picture data
@@ -265,7 +282,6 @@ void sendPicture(intptr_t sockt, char* pInput){
 	  }
 	  if (g_debug) cout << "[Application] Sent " << iSendLength << " byte data to network." << endl;
 
-	  
 	
 
 
@@ -280,6 +296,12 @@ void sendPicture(intptr_t sockt, char* pInput){
 	  }
 	  
 	  
+	  //receive time
+          gettimeofday(&etime,NULL);
+	  double t2=etime.tv_sec+(etime.tv_usec/1000000.0);   
+
+	  printf("Round Trip Time: %.6lf seconds\n",t2-t1);
+
 	  if (g_debug) cout << "[Application] Received: " << iRecvLength << " byte data from network." << endl;
 	  if (g_debug) cout << "[Application] Received: " << pReceivedData << endl;
 	  //check if picture upload was successful

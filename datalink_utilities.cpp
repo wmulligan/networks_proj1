@@ -388,7 +388,7 @@ uint8_t disassembleFrame(uint8_t length, uint8_t *bareFrame, struct frameInfo *f
   receivedChecksum += bareFrame[length - 1];
 
   if(expectedChecksum != receivedChecksum) {
-    cout << "[DataLink] Received frame with bad checksum" << endl;
+    if(g_debug) cout << "[DataLink] Received frame with bad checksum" << endl;
     return 1;
   }
 
@@ -453,7 +453,7 @@ void armTimer(uint16_t seqNum, struct linkLayerSync *syncInfo)
   }
 
   if(index == WINDOW_SIZE + 2) {
-    cout << "[DataLink] Could not arm timer for sequence number "<< seqNum << endl;
+    if(g_debug) cout << "[DataLink] Could not arm timer for sequence number "<< seqNum << endl;
     return;
   }
 

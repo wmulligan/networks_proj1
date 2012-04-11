@@ -30,7 +30,7 @@ physical_layer.o: physical_layer.cpp physical_layer.h
 datalink_layer.o: datalink_layer.cpp datalink_utilities.cpp datalink_layer.h
 	g++ -fpermissive -c datalink_layer.cpp
 
-datalink_utilities.o: datalink_utilities.o datalink_layer.h
+datalink_utilities.o: datalink_utilities.cpp datalink_layer.h
 	g++ -fpermissive -c datalink_utilities.cpp
 
 network_layer.o: network_layer.cpp network_layer.h
