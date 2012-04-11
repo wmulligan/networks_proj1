@@ -37,19 +37,19 @@ uint8_t sendAck(uint16_t seqNumber, struct linkLayerSync *syncInfo);
 
 // This is really verbose debug on checksum generation.
 #ifdef VERBOSE_CHECKSUM_DEBUG
-#define VERBOSE_CHECKSUM_DEBUG
+#undefine VERBOSE_CHECKSUM_DEBUG
 #endif
 // Verbose debug on receive
 #ifdef VERBOSE_RECEIVE_DEBUG
-#define VERBOSE_RECEIVE_DEBUG
+#undefine VERBOSE_RECEIVE_DEBUG
 #endif
 // Verbose debug on transmit
-#ifndef VERBOSE_XMIT_DEBUG
-#define VERBOSE_XMIT_DEBUG
+#ifdef VERBOSE_XMIT_DEBUG
+#undefine VERBOSE_XMIT_DEBUG
 #endif
 // Verbose interlayer communication debug
-#ifndef VERBOSE_IPC_DEBUG
-#define VERBOSE_IPC_DEBUG
+#ifdef VERBOSE_IPC_DEBUG
+#undefine VERBOSE_IPC_DEBUG
 #endif
 
 // Frame info structure: Contains all fields in a completed frame, in order.
