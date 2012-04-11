@@ -309,8 +309,10 @@ void * PhToNwHandler( void * longPointer )
       // Good sequence number, increment next expected received packet
       // Critical Section
       pthread_spin_lock(&(syncInfo->lock));
-      syncInfo->mainSequence++; // Increment expected packet to receive
-      syncInfo->ackSequence++; // Increment ACK we're expecting, as we aren't using this sequence number anymore.
+      if(receivedFrame->seqNumber + 1 > syncInfo->mainSequence) {
+	syncInfo->mainSequence = receivedFrame->seqNumber + 1; // Increment expected packet to receive
+	syncInfo->ackSequence = receivedFrame->seqNumber + 1; // Increment ACK we're expecting, as we aren't using this sequence number anymore.
+      }
       pthread_spin_unlock(&(syncInfo->lock));
       // End Critical Section
     }
@@ -383,69 +385,6 @@ void * PhToNwHandler( void * longPointer )
     if (g_debug) cout << "[DataLink] Sent " << iSendLength << " byte packet to network." << endl;
   }
 }
-
-#if 0
-// OLD REFERENCE CODE. NOT ACTUALLY COMPILED.
-
-/**
- * Take action based on an ACK frame received - including checking for validity
- */
-void handleAck(struct frameInfo *frame, struct linkLayerSync *syncInfo)
-{
-  if(frame->seqNumber != syncInfo->ackSequence) {
-    cout << "[DataLink] Received bad ACK for sequence number " << frame->seqNumber << " (expecting " << syncInfo->ackSequence << ")" << endl;
-    return;
-  } else {
-    cout << "[DataLink] Received ACK for sequence number " << frame->seqNumber << endl;
-    // Critical Section
-    pthread_spin_lock(&(syncInfo->lock));
-    syncInfo->ackSequence++; // Increment next frame we expect an ACK for
-    syncInfo->windowSize++; // Increment available window slots
-
-    // We've gotten an ACK for the frame, so remove it from recently transmitted frames; we don't need to resend
-    int id = WINDOW_SIZE + 2;
-    for(int i = 0; i < WINDOW_SIZE + 1; i++) {
-#ifdef VERBOSE_XMIT_DEBUG
-      cout << "[DataLink] Testing entry " << i << " - valid bit is " << syncInfo->recentFrames[i].isValid << endl;
-      if(syncInfo->recentFrames[i].isValid) {
-	cout << "[DataLink] Entry " << i << " has sequence number " << syncInfo->recentFrames[i].frame->seqNumber << endl;
-      }
-#endif
-      if(syncInfo->recentFrames[i].isValid && syncInfo->recentFrames[i].frame->seqNumber == frame->seqNumber) {
-	id = i;
-	break;
-      }
-    }
-    if(id == WINDOW_SIZE + 2) {
-      pthread_spin_unlock(&(syncInfo->lock));
-      cout << "[DataLink] Could not find recent frames entry to free!" << endl;
-      return;
-    }
-    free(syncInfo->recentFrames[id].frame);
-    syncInfo->recentFrames[id].isValid = 0;
-    // Alright. Double check if we have any more frames ready. If we do, arm the timer on the first one we find.
-    for(int j = syncInfo->recentFramesIndex; j < WINDOW_SIZE + 1; j++) {
-      if(syncInfo->recentFrames[j].isValid && syncInfo->recentFrames[j].frame->seqNumber > frame->seqNumber) {
-	pthread_spin_unlock(&(syncInfo->lock));
-	armTimer(syncInfo->recentFrames[j].frame->seqNumber, syncInfo);
-	return;
-      }
-    }
-    for(int k = 0; k < syncInfo->recentFramesIndex; k++) {
-      if(syncInfo->recentFrames[k].isValid && syncInfo->recentFrames[k].frame->seqNumber > frame->seqNumber) {
-	pthread_spin_unlock(&(syncInfo->lock));
-	armTimer(syncInfo->recentFrames[k].frame->seqNumber, syncInfo);
-	return;
-      }
-    }
-    pthread_spin_unlock(&(syncInfo->lock));
-    // End Critical Section
-
-    // Pass a known-bad sequence number to disarm the timer otherwise
-    armTimer(frame->seqNumber, syncInfo);
-  }
-}
-#endif
 
 /**
  * Generate Frame Check Sequence for a frame from its frameInfo struct
