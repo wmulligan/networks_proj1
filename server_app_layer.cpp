@@ -195,6 +195,7 @@ void updatePicture(int sockt, MYSQL* conn, char* data, int* selectID){
   char query[1024*5000];
  int iSendLength;
   char* filename;
+  MYSQL_RES *result;
 	
 	//convert it to string
 	istringstream in(data);
@@ -229,13 +230,20 @@ void updatePicture(int sockt, MYSQL* conn, char* data, int* selectID){
   
 	mysql_real_escape_string(conn,chunk,pictureBuffer,fileSize);
 	int len;
-	sprintf(query, "UPDATE pictures SET data='%s',filename='%s' WHERE id=%i",chunk,filename,*selectID);
-	
-  	if (mysql_query(conn, query)!=0){
+	char *stat="SELECT body_id FROM pictures WHERE body_id='%i'";
+	len=snprintf(query, sizeof(stat)+sizeof(*selectID), stat, *selectID);
+	mysql_query(conn, query);
+
+	result = mysql_store_result(conn);
+
+	if (result && mysql_num_rows(result) >= 1) {
+		memset(query, 0, sizeof(query));//clean query buffer
+		char *stat="UPDATE pictures SET data='%s', filename='%s' WHERE body_id='%i'";
+		len=snprintf(query, sizeof(stat)+sizeof(chunk)+sizeof(*selectID)+sizeof(filename), stat, chunk, filename, *selectID);
+	} else {
 		memset(query, 0, sizeof(query));//clean query buffer
 		char *stat="INSERT INTO pictures (body_id,data,filename) VALUES ('%i','%s','%s')";
 		len=snprintf(query, sizeof(stat)+sizeof(chunk)+sizeof(*selectID)+sizeof(filename), stat, *selectID,chunk,filename);
-		
 		
 	}
 	
