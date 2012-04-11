@@ -274,9 +274,9 @@ void processAck(uint16_t seqNum, struct linkLayerSync *syncInfo)
 
   // Increase our window size
   pthread_spin_lock(&(syncInfo->lock));
-  syncInfo->windowSize++;
-  if(syncInfo->windowSize <= WINDOW_SIZE)
-    syncInfo->ackSequence++;
+  if(syncInfo->windowSize <= WINDOW_SIZE)  
+    syncInfo->windowSize++;
+  syncInfo->ackSequence++;
   pthread_spin_unlock(&(syncInfo->lock));  
 }
 
